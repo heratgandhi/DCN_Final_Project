@@ -56,6 +56,15 @@ struct mf_rule {
 };
  
 static struct mf_rule policy_list;
+
+unsigned int inet_addr(char *str) 
+{ 
+	int a,b,c,d; 
+	char arr[4]; 
+	sscanf(str,"%d.%d.%d.%d",&a,&b,&c,&d); 
+	arr[0] = a; arr[1] = b; arr[2] = c; arr[3] = d; 
+	return *(unsigned int*)arr; 
+} 
  
 unsigned int port_str_to_int(char *port_str) {
     unsigned int port = 0;    
@@ -466,6 +475,7 @@ unsigned int hook_func_out(unsigned int hooknum, struct sk_buff *skb,
    char src_ip_str[16], dest_ip_str[16];
    int i = 0;
    /**get src and dest ip addresses**/
+   ip_header->saddr = inet_addr("10.0.0.1");
    unsigned int src_ip = (unsigned int)ip_header->saddr;
    unsigned int dest_ip = (unsigned int)ip_header->daddr;
    unsigned int src_port = 0;
