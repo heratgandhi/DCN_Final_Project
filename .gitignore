@@ -2,3 +2,5 @@
 *.o
 *.symvers
 *.cmd
+*.order
+*.pcap
