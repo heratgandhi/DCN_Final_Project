@@ -11,11 +11,11 @@
 #include <linux/netfilter_ipv4.h>
 
 #define PROCF_MAX_SIZE 1024
-#define PROCF_NAME "minifirewall"
+#define PROCF_NAME "firewall"
  
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Linux minifirewall");
-MODULE_AUTHOR("Liu Feipeng/roman10");
+MODULE_DESCRIPTION("Firewall");
+MODULE_AUTHOR("Herat Gandhi");
 
 //the structure used for procfs
 static struct proc_dir_entry *mf_proc_file;
