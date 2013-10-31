@@ -4,7 +4,8 @@
 #define true 1
 #define false 0
 
-int IPToUInt(char* ip) {
+int IPToUInt(char* ip) 
+{
     int a, b, c, d;
     int addr = 0;
  
@@ -17,7 +18,8 @@ int IPToUInt(char* ip) {
     addr |= d;
     return addr;
 }
-int IsIPInRange(char* ip, char* network, char* mask) {
+int IsIPInRange(char* ip, char* network, char* mask) 
+{
     int ip_addr = IPToUInt(ip);
     int network_addr = IPToUInt(network);
     int mask_addr = IPToUInt(mask);

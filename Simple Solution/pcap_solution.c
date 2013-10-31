@@ -17,13 +17,52 @@
 #define IP_IN "10.1.1.128"
 #define IP_OUT "20.1.1.129"
 
+#define NET_IN "10.1.1.0"
+#define NET_OUT "20.1.1.0"
+
+#define SUB_IN "255.255.255.0"
+#define SUB_OUT "255.255.255.0"
+
 void process_packet_in(u_char *, const struct pcap_pkthdr *,const u_char *);
 void process_packet_out(u_char *, const struct pcap_pkthdr *,const u_char *);
+
+#define true 1
+#define false 0
+
+int IPToUInt(char* ip) 
+{
+    int a, b, c, d;
+    int addr = 0;
+ 
+    if (sscanf(ip, "%d.%d.%d.%d", &a, &b, &c, &d) != 4)
+        return 0;
+ 
+    addr = a << 24;
+    addr |= b << 16;
+    addr |= c << 8;
+    addr |= d;
+    return addr;
+}
+int IsIPInRange(char* ip, char* network, char* mask) 
+{
+    int ip_addr = IPToUInt(ip);
+    int network_addr = IPToUInt(network);
+    int mask_addr = IPToUInt(mask);
+ 
+    int net_lower = (network_addr & mask_addr);
+    int net_upper = (net_lower | (~mask_addr));
+ 
+    if (ip_addr >= net_lower &&
+        ip_addr <= net_upper)
+        return true;
+    return false;
+}
 
 pcap_t* in_handle;
 pcap_t* out_handle;
 FILE* fp;
 int mac_t[6];
+char ip[16], mac[18];
 
 int matchWithRules(char* src, char* dest)
 {
@@ -40,6 +79,63 @@ int matchWithRules(char* src, char* dest)
 		}
 		i = 0;
 	} 
+}
+
+void getMac(char* ip_req)
+{
+	//Look inside the ARP cache first
+	int i=0;
+	const char filename[] = "/proc/net/arp";
+	
+	FILE *file = fopen(filename, "r");
+	if (file)
+	{
+		char line [BUFSIZ];
+		fgets(line, sizeof line, file);
+		while (fgets(line, sizeof line, file))
+		{
+			char a,b,c,d;
+			if(sscanf(line, "%s %s %s %s %s %s", &ip,&a, &b, &mac, &c, &d) < 10)
+			{
+				if(strcmp(ip_req,ip) == 0)
+					return;
+			}
+		}
+	}
+	else
+	{
+		perror(filename);
+	}
+	
+	//Did not find in the APR cache, use arping
+	FILE *fp;
+	int status;
+	char path[1035];
+	char cmd[1024];
+	char *p;	
+	i=1;
+	
+	sprintf(cmd,"arping -c1 %s",ip_req);
+	
+	fp = popen(cmd, "r");
+	if (fp == NULL) 
+	{
+		printf("Failed to run command\n" );
+	}
+	
+	while (fgets(path, sizeof(path)-1, fp) != NULL) 
+	{
+		if((p = strchr(path, '[')) != NULL) 
+		{
+			while(p[i] != ']') 
+			{
+				mac[i-1] = p[i];
+				i++;		
+			}
+			mac[i-1] = '\0';
+		}
+	}	
+	pclose(fp);	
 }
 
 void getArrayFromString(char* str1)
@@ -98,10 +194,13 @@ int main(int argc,char*argv[])
 
 void process_packet_in(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer)
 {
+	int i;
+	
 	struct ethhdr *eth = (struct ethhdr *)buffer;
     unsigned short iphdrlen;
     struct iphdr *iph = (struct iphdr *)(buffer + sizeof(struct ethhdr) );
 	struct sockaddr_in source,dest;
+    
     iphdrlen = iph->ihl*4;
     
     //Get the source IP address
@@ -115,24 +214,36 @@ void process_packet_in(u_char *args, const struct pcap_pkthdr *header, const u_c
 	char* src_ip_s = inet_ntoa(source.sin_addr);
 	char* dst_ip_s = inet_ntoa(dest.sin_addr);
 	
-	int i;
-	/*getArrayFromString(MAC2);
-	for(i=0;i<6;i++)
-		printf("%d\n",mac_t[i]);*/
+	if(!IsIPInRange(dst_ip_s,NET_OUT,SUB_OUT))
+		return;
 	
-	//if(strcmp(src_ip_s,"192.168.48.152") == 0) 
-	//{
-		printf("%d\n",pcap_inject(out_handle,buffer,header->len));
-	//}
+	getArrayFromString(MAC_OUT);
+	for(i=0;i<6;i++)
+	{
+		eth->h_source[i] = mac_t[i];
+	}
+	
+	getMac(dst_ip_s);
+	getArrayFromString(mac);
+	for(i=0;i<6;i++)
+	{
+		eth->h_dest[i] = mac_t[i];
+	}		
+	
+	printf("%d\n",pcap_inject(out_handle,buffer,header->len));
 }
 
 void process_packet_out(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer)
 {
-	unsigned short iphdrlen;
-    struct iphdr *iph = (struct iphdr *)(buffer +
-    		sizeof(struct ethhdr) );
+	int i;
+	
+	struct ethhdr *eth = (struct ethhdr *)buffer;
+    unsigned short iphdrlen;
+    struct iphdr *iph = (struct iphdr *)(buffer + sizeof(struct ethhdr) );
 	struct sockaddr_in source,dest;
+    
     iphdrlen = iph->ihl*4;
+    
     //Get the source IP address
     memset(&source, 0, sizeof(source));
 	source.sin_addr.s_addr = iph->saddr;
@@ -144,8 +255,21 @@ void process_packet_out(u_char *args, const struct pcap_pkthdr *header, const u_
 	char* src_ip_s = inet_ntoa(source.sin_addr);
 	char* dst_ip_s = inet_ntoa(dest.sin_addr);
 	
-	if(strcmp(src_ip_s,"192.168.48.152") == 0) 
+	if(!IsIPInRange(dst_ip_s,NET_IN,SUB_IN))
+		return;
+	
+	getArrayFromString(MAC_IN);
+	for(i=0;i<6;i++)
 	{
-		printf("%d\n",pcap_inject(out_handle,buffer,header->len));
+		eth->h_source[i] = mac_t[i];
 	}
+	
+	getMac(dst_ip_s);
+	getArrayFromString(mac);
+	for(i=0;i<6;i++)
+	{
+		eth->h_dest[i] = mac_t[i];
+	}		
+	
+	printf("%d\n",pcap_inject(in_handle,buffer,header->len));
 }
