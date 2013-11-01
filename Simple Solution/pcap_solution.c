@@ -8,8 +8,8 @@
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 
-#define INT_IN "eth0"
-#define INT_OUT "eth1"
+#define INT_IN "eth2"
+#define INT_OUT "eth2"
 
 #define MAC_IN "00:0c:29:91:87:9a"
 #define MAC_OUT "00:0c:29:91:87:a4" 
@@ -23,11 +23,60 @@
 #define SUB_IN "255.255.255.0"
 #define SUB_OUT "255.255.255.0"
 
+#define true 1
+#define false 0
+
 void process_packet_in(u_char *, const struct pcap_pkthdr *,const u_char *);
 void process_packet_out(u_char *, const struct pcap_pkthdr *,const u_char *);
 
-#define true 1
-#define false 0
+pcap_t* in_handle;
+pcap_t* out_handle;
+FILE* fp;
+int mac_t[6];
+char ip[16], mac[18];
+struct sockaddr_in source;
+struct sockaddr_in dest;
+
+void process_packet_in(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer)
+{
+	int i;
+	unsigned short iphdrlen;
+    struct iphdr *iph = (struct iphdr *)(buffer + sizeof(struct ethhdr));
+    iphdrlen = iph->ihl*4;
+	
+	//struct ethhdr *eth = (struct ethhdr *)buffer;
+    
+    //Get the source IP address
+    memset(&source, 0, sizeof(source));
+	source.sin_addr.s_addr = iph->saddr;
+
+	//Get the destination IP address
+	memset(&dest, 0, sizeof(dest));
+	dest.sin_addr.s_addr = iph->daddr;   
+	
+	//char* src_ip_s = inet_ntoa(source.sin_addr);
+	//char* dst_ip_s = inet_ntoa(dest.sin_addr);
+	
+	printf("%s %s\n",inet_ntoa(source.sin_addr),inet_ntoa(dest.sin_addr));
+	if(!IsIPInRange(dst_ip_s,NET_OUT,SUB_OUT))
+		return;
+
+	getArrayFromString(MAC_OUT);
+	for(i=0;i<6;i++)
+	{
+		eth->h_source[i] = mac_t[i];
+	}
+	
+	getMac(dst_ip_s);
+	
+	getArrayFromString(mac);
+	for(i=0;i<6;i++)
+	{
+		eth->h_dest[i] = mac_t[i];
+	}		
+	
+	printf("%d\n",pcap_inject(out_handle,buffer,header->len));
+}
 
 int IPToUInt(char* ip) 
 {
@@ -43,6 +92,7 @@ int IPToUInt(char* ip)
     addr |= d;
     return addr;
 }
+
 int IsIPInRange(char* ip, char* network, char* mask) 
 {
     int ip_addr = IPToUInt(ip);
@@ -57,12 +107,6 @@ int IsIPInRange(char* ip, char* network, char* mask)
         return true;
     return false;
 }
-
-pcap_t* in_handle;
-pcap_t* out_handle;
-FILE* fp;
-int mac_t[6];
-char ip[16], mac[18];
 
 int matchWithRules(char* src, char* dest)
 {
@@ -177,6 +221,19 @@ void getArrayFromString(char* str1)
 		}
 		i++;
 	}
+	mac_t[j] = total;
+}
+
+void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer)
+{
+    int size = header->len;
+    struct iphdr *iph = (struct iphdr*)(buffer + sizeof(struct ethhdr));
+    switch (iph->protocol)
+    {
+        case 6:  //TCP Protocol
+            process_packet_in(args, header, buffer);
+            break;
+    }
 }
  
 int main(int argc,char*argv[])
@@ -184,54 +241,15 @@ int main(int argc,char*argv[])
     char errbuf[100];
 
     in_handle = pcap_open_live(INT_IN,65536,1,0,errbuf);
-    out_handle = pcap_open_live(INT_OUT,65536,1,0,errbuf);
+    //out_handle = pcap_open_live(INT_OUT,65536,1,0,errbuf);
     
-    pcap_loop(in_handle, -1, process_packet_in, NULL);
-    pcap_loop(out_handle, -1, process_packet_out, NULL);
+    pcap_loop(in_handle, -1, process_packet, NULL);
+    //pcap_loop(out_handle, -1, process_packet, NULL);
     
     return 0;
 }
 
-void process_packet_in(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer)
-{
-	int i;
-	
-	struct ethhdr *eth = (struct ethhdr *)buffer;
-    unsigned short iphdrlen;
-    struct iphdr *iph = (struct iphdr *)(buffer + sizeof(struct ethhdr) );
-	struct sockaddr_in source,dest;
-    
-    iphdrlen = iph->ihl*4;
-    
-    //Get the source IP address
-    memset(&source, 0, sizeof(source));
-	source.sin_addr.s_addr = iph->saddr;
 
-	//Get the destination IP address
-	memset(&dest, 0, sizeof(dest));
-	dest.sin_addr.s_addr = iph->daddr;   
-	
-	char* src_ip_s = inet_ntoa(source.sin_addr);
-	char* dst_ip_s = inet_ntoa(dest.sin_addr);
-	
-	if(!IsIPInRange(dst_ip_s,NET_OUT,SUB_OUT))
-		return;
-	
-	getArrayFromString(MAC_OUT);
-	for(i=0;i<6;i++)
-	{
-		eth->h_source[i] = mac_t[i];
-	}
-	
-	getMac(dst_ip_s);
-	getArrayFromString(mac);
-	for(i=0;i<6;i++)
-	{
-		eth->h_dest[i] = mac_t[i];
-	}		
-	
-	printf("%d\n",pcap_inject(out_handle,buffer,header->len));
-}
 
 void process_packet_out(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer)
 {
@@ -246,11 +264,11 @@ void process_packet_out(u_char *args, const struct pcap_pkthdr *header, const u_
     
     //Get the source IP address
     memset(&source, 0, sizeof(source));
-	source.sin_addr.s_addr = iph->saddr;
+	source.sin_addr.s_addr = (uint32_t)iph->saddr;
 
 	//Get the destination IP address
 	memset(&dest, 0, sizeof(dest));
-	dest.sin_addr.s_addr = iph->daddr;   
+	dest.sin_addr.s_addr = (uint32_t)iph->daddr;   
 	
 	char* src_ip_s = inet_ntoa(source.sin_addr);
 	char* dst_ip_s = inet_ntoa(dest.sin_addr);
