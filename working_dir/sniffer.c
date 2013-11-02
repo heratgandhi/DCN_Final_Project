@@ -33,6 +33,10 @@
 #define true 1
 #define false 0
 
+#define BLOCK 1
+#define PASS 2
+#define REJECT 3
+
 pcap_t* in_handle;
 pcap_t* out_handle;
 FILE* fp;
@@ -77,13 +81,17 @@ int matchWithRules(char* src, char* dest)
 	char str[256];
 	int i = 0;
 	int default_dec = -1;
-	int rule_b = 0;
+	int rule_p = 0;
 	int len;
+	int def_rule;
+	char src_ip_l[16],dst_ip_l[16];
+	int decision;
 	
 	while(fgets(str, 255, fp_rules) != NULL)
 	{
 		ptr = strtok(str, " ");
-		rule_b = 0;
+		rule_p = 0;
+		def_rule = 0;
 		while(ptr != NULL)
 		{
 			len = strlen(ptr);
@@ -93,17 +101,67 @@ int matchWithRules(char* src, char* dest)
 				len--;
 			}
 			//printf("%s %d\n",ptr,strlen(ptr));
-			if(strcmp(ptr,"off") == 0)
+			if(rule_p == 0 && strcmp(ptr,"default") == 0)
 			{
-				default_dec = 0;
+				def_rule = 1;
 			}
-			if(strcmp(ptr,"on") == 0)
+			if(def_rule)
 			{
-				default_dec = 1;
+				if(strcmp(ptr,"off") == 0)
+				{
+					default_dec = 0;
+				}
+				if(strcmp(ptr,"on") == 0)
+				{
+					default_dec = 1;
+				}
+			}
+			else
+			{
+				switch(rule_p)
+				{
+					case 0:
+						if(strcmp(ptr,"pass") == 0)
+						{
+							decision = PASS;
+						}
+						else if(strcmp(ptr,"reject") == 0)
+						{
+							decision = REJECT;
+						}
+						else
+						{
+							decision = BLOCK; 
+						}
+					break;
+					case 1:
+						strcpy(src_ip_l,ptr);
+					break;
+					case 2:
+					break;
+					case 3:
+					break;
+					case 4:
+						strcpy(dst_ip_l,ptr);
+					break;
+					case 5:
+					break;
+					case 6:
+					break;
+				}				
 			}
 			ptr = strtok(NULL, " ");
+			rule_p++;
 		}
 		i = 0;
+		if(!def_rule)
+		{
+			if(strcmp(src_ip_l,src) == 0 && strcmp(dst_ip_l,dest) == 0)
+			{
+				if(decision == PASS)
+					return 1;
+			}
+		}		
 	}
 	return default_dec; 
 }
@@ -317,9 +375,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 		return;
 	}
 	
-	int dec = matchWithRules(srcip,dstip);	
-	
-	if(!dec)
+	if(!matchWithRules(srcip,dstip))
 	{
 		return;
 	}	
