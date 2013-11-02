@@ -1,163 +1,272 @@
-/**
-	©Author  Dai Yang, Clemens Jonischkeit
-        This program can be redistributed under GNU GPL. 
-	@institute TU Munich Faculty of Computer Science
-	@version 1.0
+/*  Copyright (C) 2011-2013  P.D. Buchan (pdbuchan@yahoo.com)
 
-	*Linux program builds up and send a ARP Request packet
-	*usage ./run -s sourceip -d destip -m sourcemac
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <linux/if_ether.h>		//TCP/IP Protocol Suite for Linux
-#include <net/if.h>
-#include <netinet/in.h>
-#include <linux/ip.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+// Send an IPv4 ARP packet via raw socket at the link layer (ethernet frame).
+// Values set for ARP request.
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>           // close()
+#include <string.h>           // strcpy, memset(), and memcpy()
 
-#define ETH_ALEN	6				//Octets in one ethernet address
-#define ETH_HLEN	14				//Total octets in heater
-#define	ETH_FRAME_LEN	1514		//Max. octets in fram sans FCS
-#define ETH_DATA_LEN	1500		//Max. octets in payload
-//These defines are copy from if_ether.h
+#include <netdb.h>            // struct addrinfo
+#include <sys/types.h>        // needed for socket(), uint8_t, uint16_t
+#include <sys/socket.h>       // needed for socket()
+#include <netinet/in.h>       // IPPROTO_RAW, INET_ADDRSTRLEN
+#include <netinet/ip.h>       // IP_MAXPACKET (which is 65535)
+#include <arpa/inet.h>        // inet_pton() and inet_ntop()
+#include <sys/ioctl.h>        // macro ioctl is defined
+#include <bits/ioctls.h>      // defines values for argument "request" of ioctl.
+#include <net/if.h>           // struct ifreq
+#include <linux/if_ether.h>   // ETH_P_ARP = 0x0806
+#include <linux/if_packet.h>  // struct sockaddr_ll (see man 7 packet)
+#include <net/ethernet.h>
 
-struct packet{
-	unsigned short _hardware_type;				//hardware address type
-	unsigned short _protocol_type;				//protocol adress type
-	unsigned char _hardware_address_length;		//hardware address length
-	unsigned char _protocol_address_length;		//Protokoll adress length
-	unsigned short _opcode;						//Operation
-	unsigned char _src_mac[ETH_ALEN];			//source MAC (Ethernet Address)
-	unsigned char _src_ip[4];					//source IP
-	unsigned char _dest_mac[ETH_ALEN];			//destination MAC (Ethernet Address)
-	unsigned char _dest_ip[4];					//destination IP 
-	char fill[18];								//Padding, ARP-Requests are quite small (<64)
+#include <errno.h>            // errno, perror()
+
+// Define a struct for ARP header
+typedef struct _arp_hdr arp_hdr;
+struct _arp_hdr {
+  uint16_t htype;
+  uint16_t ptype;
+  uint8_t hlen;
+  uint8_t plen;
+  uint16_t opcode;
+  uint8_t sender_mac[6];
+  uint8_t sender_ip[4];
+  uint8_t target_mac[6];
+  uint8_t target_ip[4];
 };
 
-//falls ein fehler beim aufruf des programs geschar (falsche / zu wenig argumente)
-void usage_err(){
-	printf("Mini-ARP-Sniffer Version 1.0\n");
-	printf("Author: Clemens Jonischkeit, Dai Yang\n");
-	printf("Technical University Munich\n");
-	printf("Wrong Usage encounterd.\n");
-	printf("Usage: ./run -s source_ip -m destination_ip -m source_MAC");
+// Define some constants.
+#define ETH_HDRLEN 14      // Ethernet header length
+#define IP4_HDRLEN 20      // IPv4 header length
+#define ARP_HDRLEN 28      // ARP header length
+#define ARPOP_REQUEST 1    // Taken from <linux/if_arp.h>
+
+// Function prototypes
+char *allocate_strmem (int);
+uint8_t *allocate_ustrmem (int);
+
+int
+main (int argc, char **argv)
+{
+  int i, status, frame_length, sd, bytes;
+  char *interface, *target, *src_ip;
+  arp_hdr arphdr;
+  uint8_t *src_mac, *dst_mac, *ether_frame;
+  struct addrinfo hints, *res;
+  struct sockaddr_in *ipv4;
+  struct sockaddr_ll device;
+  struct ifreq ifr;
+
+  // Allocate memory for various arrays.
+  src_mac = allocate_ustrmem (6);
+  dst_mac = allocate_ustrmem (6);
+  ether_frame = allocate_ustrmem (IP_MAXPACKET);
+  interface = allocate_strmem (40);
+  target = allocate_strmem (40);
+  src_ip = allocate_strmem (INET_ADDRSTRLEN);
+
+  // Interface to send packet through.
+  strcpy (interface, "eth1");
+
+  // Submit request for a socket descriptor to look up interface.
+  if ((sd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
+    perror ("socket() failed to get socket descriptor for using ioctl() ");
+    exit (EXIT_FAILURE);
+  }
+
+  // Use ioctl() to look up interface name and get its MAC address.
+  memset (&ifr, 0, sizeof (ifr));
+  snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", interface);
+  if (ioctl (sd, SIOCGIFHWADDR, &ifr) < 0) {
+    perror ("ioctl() failed to get source MAC address ");
+    return (EXIT_FAILURE);
+  }
+  close (sd);
+
+  // Copy source MAC address.
+  memcpy (src_mac, ifr.ifr_hwaddr.sa_data, 6 * sizeof (uint8_t));
+
+  // Report source MAC address to stdout.
+  printf ("MAC address for interface %s is ", interface);
+  for (i=0; i<5; i++) {
+    printf ("%02x:", src_mac[i]);
+  }
+  printf ("%02x\n", src_mac[5]);
+
+  // Find interface index from interface name and store index in
+  // struct sockaddr_ll device, which will be used as an argument of sendto().
+  if ((device.sll_ifindex = if_nametoindex (interface)) == 0) {
+    perror ("if_nametoindex() failed to obtain interface index ");
+    exit (EXIT_FAILURE);
+  }
+  printf ("Index for interface %s is %i\n", interface, device.sll_ifindex);
+
+  // Set destination MAC address: broadcast address
+  memset (dst_mac, 0xff, 6 * sizeof (uint8_t));
+
+  // Source IPv4 address:  you need to fill this out
+  strcpy (src_ip, "10.1.1.128");
+
+  // Destination URL or IPv4 address (must be a link-local node): you need to fill this out
+  strcpy (target, "10.1.1.129");
+
+  // Fill out hints for getaddrinfo().
+  memset (&hints, 0, sizeof (struct addrinfo));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = hints.ai_flags | AI_CANONNAME;
+
+  // Resolve source using getaddrinfo().
+  if ((status = getaddrinfo (src_ip, NULL, &hints, &res)) != 0) {
+    fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
+    exit (EXIT_FAILURE);
+  }
+  ipv4 = (struct sockaddr_in *) res->ai_addr;
+  memcpy (&arphdr.sender_ip, &ipv4->sin_addr, 4 * sizeof (uint8_t));
+  freeaddrinfo (res);
+
+  // Resolve target using getaddrinfo().
+  if ((status = getaddrinfo (target, NULL, &hints, &res)) != 0) {
+    fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
+    exit (EXIT_FAILURE);
+  }
+  ipv4 = (struct sockaddr_in *) res->ai_addr;
+  memcpy (&arphdr.target_ip, &ipv4->sin_addr, 4 * sizeof (uint8_t));
+  freeaddrinfo (res);
+
+  // Fill out sockaddr_ll.
+  device.sll_family = AF_PACKET;
+  memcpy (device.sll_addr, src_mac, 6 * sizeof (uint8_t));
+  device.sll_halen = htons (6);
+
+  // ARP header
+
+  // Hardware type (16 bits): 1 for ethernet
+  arphdr.htype = htons (1);
+
+  // Protocol type (16 bits): 2048 for IP
+  arphdr.ptype = htons (ETH_P_IP);
+
+  // Hardware address length (8 bits): 6 bytes for MAC address
+  arphdr.hlen = 6;
+
+  // Protocol address length (8 bits): 4 bytes for IPv4 address
+  arphdr.plen = 4;
+
+  // OpCode: 1 for ARP request
+  arphdr.opcode = htons (ARPOP_REQUEST);
+
+  // Sender hardware address (48 bits): MAC address
+  memcpy (&arphdr.sender_mac, src_mac, 6 * sizeof (uint8_t));
+
+  // Sender protocol address (32 bits)
+  // See getaddrinfo() resolution of src_ip.
+
+  // Target hardware address (48 bits): zero, since we don't know it yet.
+  memset (&arphdr.target_mac, 0, 6 * sizeof (uint8_t));
+
+  // Target protocol address (32 bits)
+  // See getaddrinfo() resolution of target.
+
+  // Fill out ethernet frame header.
+
+  // Ethernet frame length = ethernet header (MAC + MAC + ethernet type) + ethernet data (ARP header)
+  frame_length = 6 + 6 + 2 + ARP_HDRLEN;
+
+  // Destination and Source MAC addresses
+  memcpy (ether_frame, dst_mac, 6 * sizeof (uint8_t));
+  memcpy (ether_frame + 6, src_mac, 6 * sizeof (uint8_t));
+
+  // Next is ethernet type code (ETH_P_ARP for ARP).
+  // http://www.iana.org/assignments/ethernet-numbers
+  ether_frame[12] = ETH_P_ARP / 256;
+  ether_frame[13] = ETH_P_ARP % 256;
+
+  // Next is ethernet frame data (ARP header).
+
+  // ARP header
+  memcpy (ether_frame + ETH_HDRLEN, &arphdr, ARP_HDRLEN * sizeof (uint8_t));
+
+  // Submit request for a raw socket descriptor.
+  if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
+    perror ("socket() failed ");
+    exit (EXIT_FAILURE);
+  }
+
+  // Send ethernet frame to socket.
+  if ((bytes = sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device))) <= 0) {
+    perror ("sendto() failed");
+    exit (EXIT_FAILURE);
+  }
+
+  // Close socket descriptor.
+  close (sd);
+
+  // Free allocated memory.
+  free (src_mac);
+  free (dst_mac);
+  free (ether_frame);
+  free (interface);
+  free (target);
+  free (src_ip);
+
+  return (EXIT_SUCCESS);
 }
 
-int main(int argc, char* argv[])
+// Allocate memory for an array of chars.
+char *
+allocate_strmem (int len)
 {
-	char eth_cache[ETH_FRAME_LEN];  		//Cache ethernet packet
-	struct ethhdr *p_eth_header;			//build up ethernet header, from if_ether.h
-	char eth_dest[ETH_ALEN]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};    //Ethernet dest. Address
-    char eth_dest_dummy[ETH_ALEN]={0x00,0x00,0x00,0x00,0x00,0x00};
+  void *tmp;
 
-	int sock = socket(AF_INET,SOCK_PACKET,htons(0x0003));		//open the socket (Ethernet)
-	
-	struct ifreq ifr;
+  if (len <= 0) {
+    fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_strmem().\n", len);
+    exit (EXIT_FAILURE);
+  }
 
-	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth2");
-	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
-		printf("Error!\n");
-	}
-	
-	p_eth_header = (struct ethhdr*)eth_cache;				//build up the ethernet packet
-	memcpy(p_eth_header->h_dest, eth_dest, ETH_ALEN);
-	p_eth_header->h_proto=htons(0x0806);				//0x0806 for Address Resolution Packet
+  tmp = (char *) malloc (len * sizeof (char));
+  if (tmp != NULL) {
+    memset (tmp, 0, len * sizeof (char));
+    return (tmp);
+  } else {
+    fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_strmem().\n");
+    exit (EXIT_FAILURE);
+  }
+}
 
-	struct packet*p_arp;							//build up the arp packet
-	p_arp = eth_cache + ETH_HLEN;					//start address in mem
-	p_arp->_hardware_type = htons(0x1);				//0x0001 for 802.3 Frames
-	p_arp->_protocol_type = htons (0x800);
-	p_arp->_hardware_address_length = ETH_ALEN;			// 6 for eth-mac addr
-	p_arp->_protocol_address_length = 4;				//4 for IPv4 addr
-	p_arp->_opcode = htons(0x0001);			//0x0001 for ARP Request
+// Allocate memory for an array of unsigned chars.
+uint8_t *
+allocate_ustrmem (int len)
+{
+  void *tmp;
 
-    	//Parse command Line arguments
-	int i,a;
-    	struct in_addr in;
-    	struct in_addr dest;
-	if(argc!=7){					//arguments are path to executable, -s .. -d .. -m ..
-		usage_err();
-		exit(-1);
-	}
+  if (len <= 0) {
+    fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_ustrmem().\n", len);
+    exit (EXIT_FAILURE);
+  }
 
-	uint8_t val = 0;
-
-	//iterate over all arguments
-	for(i = 0;i<argc-1;i++){
-		if(strcmp(argv[i],"-s")==0){
-            		in.s_addr = inet_addr(argv[i+1]);		//interpret next argument as IPv4 addr
-           		memcpy(p_arp->_src_ip,&in.s_addr,4);		//copy to arp-header as source addr
-			val|=1;						//set lowest bit to show "-s" argument was parsed 
-			continue;
-		}
-		if(strcmp(argv[i],"-d")==0){				//like -s argument but
-            		dest.s_addr = inet_addr(argv[i+1]);		
-			memcpy(p_arp->_dest_ip,&dest.s_addr,4);		//its copyed to destinaton addr
-			val|=2;						//set corresponding bit
-			continue;
-		}
-		if(strcmp(argv[i],"-m")==0){
-			unsigned char mac[6];
-			sscanf(argv[i+1],"%x:%x:%x:%x:%x:%x",&mac[0],&mac[1]	//interpret as mac
-							    ,&mac[2],&mac[3]
-							    ,&mac[4],&mac[5]);
-			memcpy(p_arp->_src_mac,&mac,6);				//copy to source mac in arp geader
-			memcpy(p_eth_header->h_source,&mac,6); 			//and als in ethernet header
-			val|=4;							//set corresponding bit
-		}
-	}    
-	if(val != 7){				//if not all bits set (1 argument missing)
-		usage_err();			//error
-		exit(-1);
-	}
-	//Set destination mac in arp-header to 00:00:00:00:00:00
-	memcpy(p_arp->_dest_mac,eth_dest_dummy,ETH_ALEN);		
-	bzero(p_arp->fill,18);
-	//Zero fill the packet until 64 bytes reached
-
-	struct sockaddr to;
-	strcpy(to.sa_data,"eth0");
-	//Send to the eth0 interface
-
-	int n=0;
-	//send packet
-	n = sendto(sock,&eth_cache,64,0,&to,sizeof(to));
-	printf("Sent data: %d\n",n);
-
-	char buffer[65535];
-	struct packet * arp_rply;
-	arp_rply = (struct packet*)(buffer+14);
-	while(recv(sock,buffer,sizeof(buffer),0)){
-		if((((buffer[12])<<8)+buffer[13])!=ETH_P_ARP){	//if it's not an ARP-PKT
-			continue;}
-		if(ntohs(arp_rply->_opcode)!=2){		//or not an ARP replay
-			continue;}
-//		if(memcmp(p_arp->_dest_mac,arp_rply->_src_mac,ETH_ALEN) != 0){	//or if the replay is not for this host
-//			continue;}				//discard packet
-		printf("Reply from: %u.%u.%u.%u\n", arp_rply->_src_ip[0], //else print ip
-                                            arp_rply->_src_ip[1],
-                                            arp_rply->_src_ip[2],
-                                            arp_rply->_src_ip[3]);
-		char message[20];
-		sprintf(message,"%x:%x:%x:%x:%x:%x",arp_rply->_src_mac[0], //and mac
-                                            arp_rply->_src_mac[1],
-                                            arp_rply->_src_mac[2],
-                                            arp_rply->_src_mac[3],
-                                            arp_rply->_src_mac[4],
-                                            arp_rply->_src_mac[5]);
-		printf("\tHis MAC is: %s\n",message);		//to standard output
-		break;
-	}
-	//close socket
-	close(sock);
-	//exit programm
-	return 0;
+  tmp = (uint8_t *) malloc (len * sizeof (uint8_t));
+  if (tmp != NULL) {
+    memset (tmp, 0, len * sizeof (uint8_t));
+    return (tmp);
+  } else {
+    fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_ustrmem().\n");
+    exit (EXIT_FAILURE);
+  }
 }
