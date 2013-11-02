@@ -160,6 +160,8 @@ int matchWithRules(char* src, char* dest)
 			{
 				if(decision == PASS)
 					return 1;
+				if(decision == BLOCK || decision == REJECT)
+					return 0;
 			}
 		}		
 	}
