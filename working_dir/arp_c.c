@@ -1,19 +1,3 @@
-/*  Copyright (C) 2011-2013  P.D. Buchan (pdbuchan@yahoo.com)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
 // Send an IPv4 ARP packet via raw socket at the link layer (ethernet frame).
 // Values set for ARP request.
 
@@ -61,8 +45,7 @@ struct _arp_hdr {
 char *allocate_strmem (int);
 uint8_t *allocate_ustrmem (int);
 
-int
-main (int argc, char **argv)
+int main (int argc, char **argv)
 {
   int i, status, frame_length, sd, bytes;
   char *interface, *target, *src_ip;
@@ -214,6 +197,99 @@ main (int argc, char **argv)
     perror ("sendto() failed");
     exit (EXIT_FAILURE);
   }
+  
+  int i, sd, status;
+  uint8_t *ether_frame;
+  arp_hdr *arphdr;
+
+  // Allocate memory for various arrays.
+  ether_frame = allocate_ustrmem (IP_MAXPACKET);
+
+  // Submit request for a raw socket descriptor.
+  if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
+    perror ("socket() failed ");
+    exit (EXIT_FAILURE);
+  }
+
+  // Listen for incoming ethernet frame from socket sd.
+  // We expect an ARP ethernet frame of the form:
+  //     MAC (6 bytes) + MAC (6 bytes) + ethernet type (2 bytes)
+  //     + ethernet data (ARP header) (28 bytes)
+  // Keep at it until we get an ARP reply.
+  arphdr = (arp_hdr *) (ether_frame + 6 + 6 + 2);
+  while (((((ether_frame[12]) << 8) + ether_frame[13]) != ETH_P_ARP) || (ntohs (arphdr->opcode) != ARPOP_REPLY)) {
+    if ((status = recv (sd, ether_frame, IP_MAXPACKET, 0)) < 0) {
+      if (errno == EINTR) {
+        memset (ether_frame, 0, IP_MAXPACKET * sizeof (uint8_t));
+        continue;  // Something weird happened, but let's try again.
+      } else {
+        perror ("recv() failed:");
+        exit (EXIT_FAILURE);
+      }
+    }
+  }
+  close (sd);
+
+  // Print out contents of received ethernet frame.
+  printf ("\nEthernet frame header:\n");
+  printf ("Destination MAC (this node): ");
+  for (i=0; i<5; i++) {
+    printf ("%02x:", ether_frame[i]);
+  }
+  printf ("%02x\n", ether_frame[5]);
+  printf ("Source MAC: ");
+  for (i=0; i<5; i++) {
+    printf ("%02x:", ether_frame[i+6]);
+  }
+  printf ("%02x\n", ether_frame[11]);
+  // Next is ethernet type code (ETH_P_ARP for ARP).
+  // http://www.iana.org/assignments/ethernet-numbers
+  printf ("Ethernet type code (2054 = ARP): %u\n", ((ether_frame[12]) << 8) + ether_frame[13]);
+  printf ("\nEthernet data (ARP header):\n");
+  printf ("Hardware type (1 = ethernet (10 Mb)): %u\n", ntohs (arphdr->htype));
+  printf ("Protocol type (2048 for IPv4 addresses): %u\n", ntohs (arphdr->ptype));
+  printf ("Hardware (MAC) address length (bytes): %u\n", arphdr->hlen);
+  printf ("Protocol (IPv4) address length (bytes): %u\n", arphdr->plen);
+  printf ("Opcode (2 = ARP reply): %u\n", ntohs (arphdr->opcode));
+  printf ("Sender hardware (MAC) address: ");
+  for (i=0; i<5; i++) {
+    printf ("%02x:", arphdr->sender_mac[i]);
+  }
+  printf ("%02x\n", arphdr->sender_mac[5]);
+  printf ("Sender protocol (IPv4) address: %u.%u.%u.%u\n",
+    arphdr->sender_ip[0], arphdr->sender_ip[1], arphdr->sender_ip[2], arphdr->sender_ip[3]);
+  printf ("Target (this node) hardware (MAC) address: ");
+  for (i=0; i<5; i++) {
+    printf ("%02x:", arphdr->target_mac[i]);
+  }
+  printf ("%02x\n", arphdr->target_mac[5]);
+  printf ("Target (this node) protocol (IPv4) address: %u.%u.%u.%u\n",
+    arphdr->target_ip[0], arphdr->target_ip[1], arphdr->target_ip[2], arphdr->target_ip[3]);
+
+  free (ether_frame);
+
+  return (EXIT_SUCCESS);
+}
+
+// Allocate memory for an array of unsigned chars.
+uint8_t *
+allocate_ustrmem (int len)
+{
+  void *tmp;
+
+  if (len <= 0) {
+    fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_ustrmem().\n", len);
+    exit (EXIT_FAILURE);
+  }
+
+  tmp = (uint8_t *) malloc (len * sizeof (uint8_t));
+  if (tmp != NULL) {
+    memset (tmp, 0, len * sizeof (uint8_t));
+    return (tmp);
+  } else {
+    fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_ustrmem().\n");
+    exit (EXIT_FAILURE);
+  }
 
   // Close socket descriptor.
   close (sd);
@@ -230,8 +306,7 @@ main (int argc, char **argv)
 }
 
 // Allocate memory for an array of chars.
-char *
-allocate_strmem (int len)
+char* allocate_strmem (int len)
 {
   void *tmp;
 
@@ -251,8 +326,7 @@ allocate_strmem (int len)
 }
 
 // Allocate memory for an array of unsigned chars.
-uint8_t *
-allocate_ustrmem (int len)
+uint8_t* allocate_ustrmem (int len)
 {
   void *tmp;
 

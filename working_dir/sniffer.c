@@ -43,6 +43,7 @@ FILE* fp;
 int mac_t[6];
 char ip[16], mac[18];
 int linkhdrlen;
+pcap_dumper_t *dumper;
 
 int IPToUInt(char* ip) 
 {
@@ -89,6 +90,8 @@ int matchWithRules(char* src, char* dest)
 	
 	while(fgets(str, 255, fp_rules) != NULL)
 	{
+		if(str[0] == '#')
+			continue;
 		ptr = strtok(str, " ");
 		rule_p = 0;
 		def_rule = 0;
@@ -270,7 +273,7 @@ void getArrayFromString(char* str1)
 	mac_t[j] = total;
 }
 
-void capture_loop(pcap_t* pd, int packets, pcap_handler func)
+void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
 {
     int linktype;
  
@@ -303,8 +306,10 @@ void capture_loop(pcap_t* pd, int packets, pcap_handler func)
     }
  
     // Start capturing packets.
-    if (pcap_loop(pd, packets, func, 0) < 0)
-        printf("pcap_loop failed: %s\n", pcap_geterr(pd));
+    if (pcap_loop(pd, packets, func, dump) < 0)
+	{
+		printf("pcap_loop failed: %s\n", pcap_geterr(pd));
+	}
 }
 
 void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
@@ -492,31 +497,117 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 	printf("%d\n",pcap_inject(in_handle,eth,packethdr->len));
 }
 
+void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
+{
+    struct ip* iphdr;
+    struct icmphdr* icmphdr;
+    struct tcphdr* tcphdr;
+    struct udphdr* udphdr;
+    char iphdrInfo[256], srcip[256], dstip[256];
+    unsigned short id, seq;
+    int i;
+    
+    u_char *backup = packetptr;
+    
+    struct ethhdr *eth = (struct ethhdr *)packetptr;
+ 
+    // Skip the datalink layer header and get the IP header fields.
+    packetptr += linkhdrlen;
+    iphdr = (struct ip*)packetptr;
+    strcpy(srcip, inet_ntoa(iphdr->ip_src));
+    strcpy(dstip, inet_ntoa(iphdr->ip_dst));
+    sprintf(iphdrInfo, "ID:%d TOS:0x%x, TTL:%d IpLen:%d DgLen:%d",
+            ntohs(iphdr->ip_id), iphdr->ip_tos, iphdr->ip_ttl,
+            4*iphdr->ip_hl, ntohs(iphdr->ip_len));
+            
+    // Advance to the transport layer header then parse and display
+    // the fields based on the type of hearder: tcp, udp or icmp.
+    packetptr += 4*iphdr->ip_hl;
+    
+    /*switch (iphdr->ip_p)
+    {
+    case IPPROTO_TCP:
+        tcphdr = (struct tcphdr*)packetptr;
+        printf("TCP  %s:%d -> %s:%d\n", srcip, ntohs(tcphdr->source),
+               dstip, ntohs(tcphdr->dest));
+        printf("%s\n", iphdrInfo);
+        printf("%c%c%c%c%c%c Seq: 0x%x Ack: 0x%x Win: 0x%x TcpLen: %d\n",
+               (tcphdr->urg ? 'U' : '*'),
+               (tcphdr->ack ? 'A' : '*'),
+               (tcphdr->psh ? 'P' : '*'),
+               (tcphdr->rst ? 'R' : '*'),
+               (tcphdr->syn ? 'S' : '*'),
+               (tcphdr->fin ? 'F' : '*'),
+               ntohl(tcphdr->seq), ntohl(tcphdr->ack_seq),
+               ntohs(tcphdr->window), 4*tcphdr->doff);
+        break;
+ 
+    case IPPROTO_UDP:
+        udphdr = (struct udphdr*)packetptr;
+        printf("UDP  %s:%d -> %s:%d\n", srcip, ntohs(udphdr->source),
+               dstip, ntohs(udphdr->dest));
+        printf("%s\n", iphdrInfo);
+        break;
+ 
+    case IPPROTO_ICMP:
+        icmphdr = (struct icmphdr*)packetptr;
+        printf("ICMP %s -> %s\n", srcip, dstip);
+        printf("%s\n", iphdrInfo);
+        memcpy(&id, (u_char*)icmphdr+4, 2);
+        memcpy(&seq, (u_char*)icmphdr+6, 2);
+        printf("Type:%d Code:%d ID:%d Seq:%d\n", icmphdr->type, icmphdr->code, 
+               ntohs(id), ntohs(seq));
+        break;
+    }
+    printf(
+        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");*/
+	
+	if(matchWithRules(srcip,dstip))
+	{
+		printf("%s %s\n", srcip, dstip);
+		pcap_dump(user, packethdr, backup);
+	}
+}
+
 int main(int argc, char **argv)
 {
     char errbuf[100];
-    pid_t childPID;
-
-    in_handle = pcap_open_live(INT_IN,65536,1,0,errbuf);
-    out_handle = pcap_open_live(INT_OUT,65536,1,0,errbuf);
+    int mode = atoi(argv[1]);
     
-    childPID = fork();
+    if(mode == 1)
+    {
+		pid_t childPID;
+		
+		in_handle = pcap_open_live(INT_IN,65536,1,0,errbuf);
+		out_handle = pcap_open_live(INT_OUT,65536,1,0,errbuf);
+		
+		childPID = fork();
 
-    if(childPID >= 0)
-    {
-        if(childPID == 0)
-        {
-            capture_loop(in_handle, -1, (pcap_handler)parse_packet);
-        }
-        else
-        {
-            capture_loop(out_handle, -1, (pcap_handler)parse_packet_p);
-        }
-    }
-    else
-    {
-        printf("\n Fork failed, quitting!!!!!!\n");
-        return 1;
-    }    
+		if(childPID >= 0)
+		{
+			if(childPID == 0)
+			{
+				capture_loop(in_handle, -1, (pcap_handler)parse_packet, NULL);
+			}
+			else
+			{
+				capture_loop(out_handle, -1, (pcap_handler)parse_packet_p, NULL);
+			}
+		}
+		else
+		{
+			printf("\n Fork failed, quitting!!!!!!\n");
+			return 1;
+		}
+	}    
+	else
+	{
+		in_handle = pcap_open_offline("data.pcap",errbuf);
+		//802.3 = 1 - link type	
+		out_handle = pcap_open_dead(1,65536);
+		dumper = pcap_dump_open(out_handle, "out.pcap");
+		
+		capture_loop(in_handle, -1, (pcap_handler)parse_packet_file, (u_char*)dumper);
+	}
     return 0;
 }
