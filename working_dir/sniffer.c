@@ -258,7 +258,7 @@ void getMac(char* ip_req,char *inter_face)
 			{
 				if(strcmp(ip_req,ip) == 0) 
 				{
-					printf("Found in the cache:%s",mac);
+					printf("Found in the cache: %s\n",mac);
 					return;
 				}
 			}
@@ -297,7 +297,10 @@ void getMac(char* ip_req,char *inter_face)
 			mac[i-1] = '\0';
 		}
 	}	
-	pclose(fp);	
+	pclose(fp);
+	
+	sprintf(cmd,"arp -s %s %s",ip_req,mac);
+	system(cmd);	
 }
 
 void getArrayFromString(char* str1)
