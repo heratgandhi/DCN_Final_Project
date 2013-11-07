@@ -77,19 +77,5 @@ int main(int argc, char* argv[])
     printf("Sent %d byte packet to %s\n", ip->tot_len, dst_addr);
 
     addrlen = sizeof(connection);
-    /*if (recvfrom(sockfd, buffer, sizeof(struct iphdr) + sizeof(struct icmphdr), 0, (struct sockaddr *)&connection, &addrlen) == -1)
-	{
-		perror("recv");
-	}
-    else
-	{
-		char *cp;
-		ip_reply = (struct iphdr*) buffer;
-		cp = (char *)&ip_reply->saddr;
-		printf("Received %d byte reply from %u.%u.%u.%u:\n", ntohs(ip_reply->tot_len), cp[0]&0xff,cp[1]&0xff,cp[2]&0xff,cp[3]&0xff);
-		printf("ID: %d\n", ntohs(ip_reply->id));
-		printf("TTL: %d\n", ip_reply->ttl);
-	}*/
-
 }
 

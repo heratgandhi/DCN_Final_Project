@@ -14,6 +14,7 @@
 #include <net/ethernet.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <netdb.h>
 
 #define INT_IN "eth1"
 #define INT_OUT "eth2"
@@ -44,6 +45,72 @@ int mac_t[6];
 char ip[16], mac[18];
 int linkhdrlen;
 pcap_dumper_t *dumper;
+
+unsigned short in_cksum(unsigned short *addr, int len)
+{
+    register int sum = 0;
+    u_short answer = 0;
+    register u_short *w = addr;
+    register int nleft = len;
+    
+    while (nleft > 1)
+    {
+      sum += *w++;
+      nleft -= 2;
+    }
+    
+    if (nleft == 1)
+    {
+      *(u_char *) (&answer) = *(u_char *) w;
+      sum += answer;
+    }
+    
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+    answer = ~sum;
+    return (answer);
+}
+
+void SendICMPError(char* src_addr, char* dst_addr)
+{
+    struct iphdr *ip, *ip_reply;
+    struct icmphdr* icmp;
+    struct sockaddr_in connection;
+    char *packet, *buffer;
+    int sockfd, optval, addrlen;
+
+    packet = malloc(sizeof(struct iphdr) + sizeof(struct icmphdr));
+    buffer = malloc(sizeof(struct iphdr) + sizeof(struct icmphdr));
+    ip = (struct iphdr*) packet;
+    icmp = (struct icmphdr*) (packet + sizeof(struct iphdr));
+
+    ip->ihl         = 5;
+    ip->version     = 4;
+    ip->tot_len     = sizeof(struct iphdr) + sizeof(struct icmphdr);
+    ip->protocol    = IPPROTO_ICMP;
+    ip->saddr       = inet_addr(src_addr);
+    ip->daddr       = inet_addr(dst_addr);
+    ip->check = in_cksum((unsigned short *)ip, sizeof(struct iphdr)); 
+
+    icmp->type      = ICMP_DEST_UNREACH;
+    icmp->code      = ICMP_PKT_FILTERED;
+    icmp->checksum = in_cksum((unsigned short *)icmp, sizeof(struct icmphdr));
+
+    /* open ICMP socket */
+    if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+    
+    /* IP_HDRINCL must be set on the socket so that the kernel does not attempt 
+     *  to automatically add a default ip header to the packet*/
+    setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &optval, sizeof(int));
+
+    connection.sin_family       = AF_INET;
+    connection.sin_addr.s_addr  = ip->daddr;
+    sendto(sockfd, packet, ip->tot_len, 0, (struct sockaddr *)&connection, sizeof(struct sockaddr));
+    addrlen = sizeof(connection);
+}
 
 int IPToUInt(char* ip) 
 {
@@ -163,8 +230,10 @@ int matchWithRules(char* src, char* dest)
 			{
 				if(decision == PASS)
 					return 1;
-				if(decision == BLOCK || decision == REJECT)
+				else if(decision == BLOCK)
 					return 0;
+				else if(decision == REJECT)
+					return -1;
 			}
 		}		
 	}
@@ -321,6 +390,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     char iphdrInfo[256], srcip[256], dstip[256];
     unsigned short id, seq;
     int i;
+    int decision_p;
     
     struct ethhdr *eth = (struct ethhdr *)packetptr;
  
@@ -382,10 +452,18 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 		return;
 	}
 	
-	if(!matchWithRules(srcip,dstip))
+	decision_p = matchWithRules(srcip,dstip);
+	if(decision_p == 0)
 	{
+		printf("Drop!\n");
 		return;
-	}	
+	} 
+	else if(decision_p == -1) 	
+	{
+		printf("Reject!\n");
+		SendICMPError(dstip,srcip);
+		return;
+	}
 
 	getArrayFromString(MAC_OUT);
 	for(i=0;i<6;i++)
@@ -414,6 +492,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     char iphdrInfo[256], srcip[256], dstip[256];
     unsigned short id, seq;
     int i;
+    int decision_p;
     
     struct ethhdr *eth = (struct ethhdr *)packetptr;
  
@@ -475,8 +554,16 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 		return;
 	}
 	
-	if(!matchWithRules(srcip,dstip))
+	decision_p = matchWithRules(srcip,dstip);
+	if(decision_p == 0)
 	{
+		printf("Drop!\n");
+		return;
+	} 
+	else if(decision_p == -1) 	
+	{
+		printf("Reject!\n");
+		SendICMPError(dstip,srcip);
 		return;
 	}
 
