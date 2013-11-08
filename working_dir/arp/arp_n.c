@@ -17,16 +17,18 @@ char check_ip[16];
 void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
 	count++;
-	if(count > 10)
+	if(count > 3)
 		pcap_breakloop(pcap);
     struct ethhdr *eth = (struct ethhdr *)packetptr;
     if(htons(eth->h_proto) != 0x0806)
 		return;
     struct ether_arp* arph = (struct ether_arp*)(packetptr+sizeof(struct ethhdr));
+    char ip_hdr[16];
     if(ntohs(arph->arp_op) != 2)
 		return;
-	int i;
-    printf("%d.%d.%d.%d\n", arph->arp_spa[0],arph->arp_spa[1],arph->arp_spa[2],arph->arp_spa[3]); 
+    sprintf(ip_hdr,"%d.%d.%d.%d", arph->arp_spa[0],arph->arp_spa[1],arph->arp_spa[2],arph->arp_spa[3]); 
+    if(strcmp(ip_hdr,check_ip) != 0)
+		return;
     printf("%.2X:%.2X:%.2X:%.2X:%.2X:%.2X \n", eth->h_source[0] , eth->h_source[1] , eth->h_source[2] , eth->h_source[3] , eth->h_source[4] , eth->h_source[5] );    
     pcap_breakloop(pcap);
 }
@@ -75,6 +77,7 @@ int main(int argc,const char* argv[]) {
     }
     const char* if_name=argv[1];
     const char* target_ip_string=argv[2];
+    strcpy(check_ip,target_ip_string);
 
     // Construct Ethernet header (except for source MAC address).
     // (Destination set to broadcast address, FF:FF:FF:FF:FF:FF.)
