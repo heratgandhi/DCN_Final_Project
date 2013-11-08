@@ -3,31 +3,41 @@
 
 int arp_cnt = 0;
 
+//Pcap handler for ARP packets
 void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
 	arp_cnt++;
+	/*
+	 * Check for the error- If there are more than 3 packets
+	 * after ARP request then timeout.
+	 */
 	if(arp_cnt > 3)
 	{
 		strcpy(arp_ans,"");
 		pcap_breakloop(arp_pcap);
 	}
     struct ethhdr *eth = (struct ethhdr *)packetptr;
+    //Check if the packet is of ARP protocol
     if(htons(eth->h_proto) != 0x0806)
 		return;
     struct ether_arp* arph = (struct ether_arp*)(packetptr+sizeof(struct ethhdr));
     char ip_hdr[16];
+    //Check if the packet is ARP response
     if(ntohs(arph->arp_op) != 2)
 		return;
     sprintf(ip_hdr,"%d.%d.%d.%d", arph->arp_spa[0],arph->arp_spa[1],arph->arp_spa[2],arph->arp_spa[3]);
+    //Compare the ip address of the sender with the target ip address
     if(strcmp(ip_hdr,check_ip) != 0)
 		return;
+    //Get mac address
     sprintf(arp_ans,"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", eth->h_source[0] , eth->h_source[1] , eth->h_source[2] , eth->h_source[3] , eth->h_source[4] , eth->h_source[5] );
     pcap_breakloop(arp_pcap);
 }
 
+//Main function to get the MAC from IP
 char* get_Mac_ARP(char* target_ip_string,char *if_name)
 {
-	int i=0;
+	//First check inside the cache of the OS
 	const char filename[] = "/proc/net/arp";
 	char ip_l[16];
 

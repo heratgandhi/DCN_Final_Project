@@ -19,7 +19,7 @@ Testing Enviornment:
    Eth0:                  Eth0:                 Eth0:
     IP: 10.1.1.129          IP: 10.1.1.128        IP: 20.1.1.128
                           Eth1:
-							IP: 20.1.1.129
+                            IP: 20.1.1.129
 							
 	The default gateway for VM-1 is set to: 10.1.1.128
 	The default gateway	for VM-3 is set to: 20.1.1.129

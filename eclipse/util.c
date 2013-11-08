@@ -1,5 +1,6 @@
 #include "util.h"
 
+//Compute the checksum value
 unsigned short in_cksum(unsigned short *addr, int len)
 {
     register int sum = 0;
@@ -25,6 +26,7 @@ unsigned short in_cksum(unsigned short *addr, int len)
     return (answer);
 }
 
+//Send ICMP error to the Sender using Raw sockets
 void SendICMPError(char* src_addr, char* dst_addr)
 {
     struct iphdr *ip, *ip_reply;
@@ -38,16 +40,16 @@ void SendICMPError(char* src_addr, char* dst_addr)
     ip = (struct iphdr*) packet;
     icmp = (struct icmphdr*) (packet + sizeof(struct iphdr));
 
-    ip->ihl         = 5;
-    ip->version     = 4;
+    ip->ihl         = 5; //length is 5 bytes
+    ip->version     = 4; //IPv4
     ip->tot_len     = sizeof(struct iphdr) + sizeof(struct icmphdr);
-    ip->protocol    = IPPROTO_ICMP;
-    ip->saddr       = inet_addr(src_addr);
-    ip->daddr       = inet_addr(dst_addr);
+    ip->protocol    = IPPROTO_ICMP; //ICMP
+    ip->saddr       = inet_addr(src_addr); //set source address
+    ip->daddr       = inet_addr(dst_addr); //set destination address
     ip->check = in_cksum((unsigned short *)ip, sizeof(struct iphdr));
 
-    icmp->type      = ICMP_DEST_UNREACH;
-    icmp->code      = ICMP_PKT_FILTERED;
+    icmp->type      = ICMP_DEST_UNREACH; //Type = 5
+    icmp->code      = ICMP_PKT_FILTERED; //Code = 13
     icmp->checksum = in_cksum((unsigned short *)icmp, sizeof(struct icmphdr));
 
     /* open ICMP socket */
@@ -66,6 +68,7 @@ void SendICMPError(char* src_addr, char* dst_addr)
     addrlen = sizeof(connection);
 }
 
+//Convert string ip to number
 int IPToUInt(char* ip)
 {
     int a, b, c, d;
@@ -81,6 +84,7 @@ int IPToUInt(char* ip)
     return addr;
 }
 
+//Check whether IP belongs to the network
 int IsIPInRange(char* ip, char* network, char* mask)
 {
     int ip_addr = IPToUInt(ip);
@@ -96,6 +100,7 @@ int IsIPInRange(char* ip, char* network, char* mask)
     return false;
 }
 
+//Simple rule matching engine
 int matchWithRules(char* src, char* dest)
 {
 	FILE* fp_rules = fopen("rules","r");
@@ -194,6 +199,7 @@ int matchWithRules(char* src, char* dest)
 	return default_dec;
 }
 
+//Get MAC address array from the string
 void getArrayFromString(char* str1)
 {
 	char c = ' ';
@@ -203,6 +209,7 @@ void getArrayFromString(char* str1)
 	int j = 0;
 	char v;
 
+	//Read the string
 	while((c = str1[i]) != '\0')
 	{
 		if(c == ':')
