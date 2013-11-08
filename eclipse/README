@@ -16,7 +16,7 @@ Testing Enviornment:
 	|  VM-1  |------------|  VM-2  |-----------| VM - 3 |
 	|        |            |        |           |        |
 	 --------              --------             --------
-   Eth0:				  Eth0:                 Eth0:
+   Eth0:                  Eth0:                 Eth0:
     IP: 10.1.1.129          IP: 10.1.1.128        IP: 20.1.1.128
                           Eth1:
 							IP: 20.1.1.129
@@ -27,7 +27,7 @@ Testing Enviornment:
 	Both these networks are not reachable to each other by any means.
 	The only way to communicate from VM-1 to VM-3 is to use firewall code.					
 
-How to run?:
+How to compile & run?:
 	To compile, use the following command:
 		make
 	To run use the following command:
@@ -47,3 +47,20 @@ Rule Syntax:
 	- Examples of rules,
 	pass 10.1.1.129 255.255.255.0 -1 20.1.1.128 255.255.255.0 -1
 	pass 20.1.1.128 255.255.255.0 -1 10.1.1.129 255.255.255.0 -1
+	#comments
+	#block 10.1.1.129
+
+Steps involved while processing packets:
+1. Create two processes that listen on two different interfaces
+2. Process the packets which have source ip in one network but destination ip in another network
+3. For each such packet,
+   a. Search for the rule which matches a packet
+   b. If the rule says to drop packet, do not do anything.
+   c. If the rule says to reject packet, send the source an ICMP packet.
+   d. If the rule says to pass packet, inject the packet in another interface.
+4. To inject packet in another interface,
+   a. change the source MAC of the packet
+   b. Find the MAC address of the destination using ARP
+		i. Check whether MAC address exists in the OS's cache
+		ii. If cache does not have MAC then put ARP request in the network
+		iii. Listen for the ARP reply and extract MAC from packet
