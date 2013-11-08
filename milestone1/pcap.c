@@ -311,6 +311,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
 
 	if(matchWithRules(srcip,dstip))
 	{
+		printf("%s %s\n", srcip, dstip);
 		//write the packet to the pcap file
 		pcap_dump(user, packethdr, backup);
 	}

@@ -1,0 +1,66 @@
+File Structure:
+	- globals.h: Contains all the global variables
+	- firewall.c: Main function of the firewall project
+	- arp.h: ARP related functions' declarations
+	- arp.c: ARP related functions' definitions
+	- pcap.h: pcap related functions' declarations
+	- pcap.c: pcap related functions' definitions
+	- util.h: small utilities like ip conversion, mac conversion and ICMP error functions' declarations
+	- util.c: small utilities like ip conversion, mac conversion and ICMP error functions' definitions
+	
+Testing Enviornment:
+	I created 3 virtual machines. They are connected as mentioned below:
+	
+	 --------              --------             --------
+	|        |            |        |           |        |
+	|  VM-1  |------------|  VM-2  |-----------| VM - 3 |
+	|        |            |        |           |        |
+	 --------              --------             --------
+   Eth0:                  Eth0:                 Eth0:
+    IP: 10.1.1.129          IP: 10.1.1.128        IP: 20.1.1.128
+                          Eth1:
+                            IP: 20.1.1.129
+							
+	The default gateway for VM-1 is set to: 10.1.1.128
+	The default gateway	for VM-3 is set to: 20.1.1.129
+	
+	Both these networks are not reachable to each other by any means.
+	The only way to communicate from VM-1 to VM-3 is to use firewall code.					
+
+How to compile & run?:
+	To compile, use the following command:
+		make
+	To run use the following command:
+		# ./firewall mode input_file output_file
+		mode = 1- for live capture, 2- pcap file
+		input_file = input pcap file from which packets are to be read
+		output_file = output pcap file where filtered packets will be stored
+
+Rule Syntax:
+    - You can also comment the rules by prepending them with "#".
+	- default rule: The default behavior of the firewall when any rules are not matched.
+		Example, default off/on
+	- Pass/Block/Reject source_ip source_ip_netmask source_port destination_ip destination_ip_subnet destination_port
+	Pass = allows packet to pass
+	Block = drop the packet without sending any error message
+	Reject = drop the packet but send ICMP error message to the sender
+	- Examples of rules,
+	pass 10.1.1.129 255.255.255.0 -1 20.1.1.128 255.255.255.0 -1
+	pass 20.1.1.128 255.255.255.0 -1 10.1.1.129 255.255.255.0 -1
+	#comments
+	#block 10.1.1.129
+
+Steps involved while processing packets:
+1. Create two processes that listen on two different interfaces
+2. Process the packets which have source ip in one network but destination ip in another network
+3. For each such packet,
+   a. Search for the rule which matches a packet
+   b. If the rule says to drop packet, do not do anything.
+   c. If the rule says to reject packet, send the source an ICMP packet.
+   d. If the rule says to pass packet, inject the packet in another interface.
+4. To inject packet in another interface,
+   a. change the source MAC of the packet
+   b. Find the MAC address of the destination using ARP
+		i. Check whether MAC address exists in the OS's cache
+		ii. If cache does not have MAC then put ARP request in the network
+		iii. Listen for the ARP reply and extract MAC from packet
