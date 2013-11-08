@@ -12,6 +12,7 @@
 int linkhdrlen;
 pcap_t *pcap;
 int count = 0;
+char check_ip[16];
 
 void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
@@ -21,9 +22,11 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     struct ethhdr *eth = (struct ethhdr *)packetptr;
     if(htons(eth->h_proto) != 0x0806)
 		return;
-    struct arphdr* arph = (struct arphdr*)(packetptr+sizeof(struct ethhdr));
-    if(ntohs(arph->ar_op) != 2)
+    struct ether_arp* arph = (struct ether_arp*)(packetptr+sizeof(struct ethhdr));
+    if(ntohs(arph->arp_op) != 2)
 		return;
+	int i;
+    printf("%d.%d.%d.%d\n", arph->arp_spa[0],arph->arp_spa[1],arph->arp_spa[2],arph->arp_spa[3]); 
     printf("%.2X:%.2X:%.2X:%.2X:%.2X:%.2X \n", eth->h_source[0] , eth->h_source[1] , eth->h_source[2] , eth->h_source[3] , eth->h_source[4] , eth->h_source[5] );    
     pcap_breakloop(pcap);
 }

@@ -299,8 +299,8 @@ void getMac(char* ip_req,char *inter_face)
 	}	
 	pclose(fp);
 	
-	sprintf(cmd,"arp -s %s %s",ip_req,mac);
-	system(cmd);	
+	//sprintf(cmd,"arp -s %s %s",ip_req,mac);
+	//system(cmd);	
 }
 
 void getArrayFromString(char* str1)
