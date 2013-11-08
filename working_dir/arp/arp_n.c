@@ -9,16 +9,20 @@
 #include <sys/ioctl.h>
 #include <net/if_arp.h>
 
-int linkhdrlen;
-pcap_t *pcap;
-int count = 0;
+int arp_linkhdrlen;
+pcap_t *arp_pcap;
+int arp_cnt = 0;
 char check_ip[16];
+char arp_ans[18];
 
 void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
-	count++;
-	if(count > 3)
-		pcap_breakloop(pcap);
+	arp_cnt++;
+	if(arp_cnt > 3)
+	{
+		arp_ans = NULL;
+		pcap_breakloop(arp_pcap);
+	}
     struct ethhdr *eth = (struct ethhdr *)packetptr;
     if(htons(eth->h_proto) != 0x0806)
 		return;
@@ -29,8 +33,8 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     sprintf(ip_hdr,"%d.%d.%d.%d", arph->arp_spa[0],arph->arp_spa[1],arph->arp_spa[2],arph->arp_spa[3]); 
     if(strcmp(ip_hdr,check_ip) != 0)
 		return;
-    printf("%.2X:%.2X:%.2X:%.2X:%.2X:%.2X \n", eth->h_source[0] , eth->h_source[1] , eth->h_source[2] , eth->h_source[3] , eth->h_source[4] , eth->h_source[5] );    
-    pcap_breakloop(pcap);
+    sprintf(arp_ans,"%.2X:%.2X:%.2X:%.2X:%.2X:%.2X \n", eth->h_source[0] , eth->h_source[1] , eth->h_source[2] , eth->h_source[3] , eth->h_source[4] , eth->h_source[5] );    
+    pcap_breakloop(arp_pcap);
 }
 
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
@@ -48,16 +52,16 @@ void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
     switch (linktype)
     {
 		case DLT_NULL:
-			linkhdrlen = 4;
+			arp_linkhdrlen = 4;
 			break;
 	 
 		case DLT_EN10MB:
-			linkhdrlen = 14;
+			arp_linkhdrlen = 14;
 			break;
 	 
 		case DLT_SLIP:
 		case DLT_PPP:
-			linkhdrlen = 24;
+			arp_linkhdrlen = 24;
 			break;
 	 
 		default:
@@ -69,14 +73,7 @@ void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
     pcap_loop(pd, packets, func, dump);
 }
 
-int main(int argc,const char* argv[]) {
-    // Get interface name and target IP address from command line.
-    if (argc<2) {
-        fprintf(stderr,"usage: send_arp <interface> <ipv4-address>\n");
-        exit(1);
-    }
-    const char* if_name=argv[1];
-    const char* target_ip_string=argv[2];
+char* get_Mac_ARP(char *if_name, char* target_ip_string) {
     strcpy(check_ip,target_ip_string);
 
     // Construct Ethernet header (except for source MAC address).
@@ -154,7 +151,7 @@ int main(int argc,const char* argv[]) {
     // Open a PCAP packet capture descriptor for the specified interface.
     char pcap_errbuf[PCAP_ERRBUF_SIZE];
     pcap_errbuf[0]='\0';
-    pcap=pcap_open_live(if_name,96,0,0,pcap_errbuf);
+    arp_pcap=pcap_open_live(if_name,96,0,0,pcap_errbuf);
     if (pcap_errbuf[0]!='\0') {
         fprintf(stderr,"%s\n",pcap_errbuf);
     }
@@ -163,15 +160,15 @@ int main(int argc,const char* argv[]) {
     }
 
     // Write the Ethernet frame to the interface.
-    if (pcap_inject(pcap,frame,sizeof(frame))==-1) {
-        pcap_perror(pcap,0);
-        pcap_close(pcap);
+    if (pcap_inject(arp_pcap,frame,sizeof(frame))==-1) {
+        pcap_perror(arp_pcap,0);
+        pcap_close(arp_pcap);
         exit(1);
     }
     
-    capture_loop(pcap, -1, (pcap_handler)parse_packet, NULL);
+    capture_loop(arp_pcap, -1, (pcap_handler)parse_packet, NULL);
 
     // Close the PCAP descriptor.
-    pcap_close(pcap);
-    return 0;
+    pcap_close(arp_pcap);
+    return arp_ans;
 }
