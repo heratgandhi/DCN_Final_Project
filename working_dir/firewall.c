@@ -413,69 +413,6 @@ int matchWithRules(char* src, char* dest)
 	return default_dec; 
 }
 
-void getMac(char* ip_req,char *inter_face)
-{
-	//Look inside the ARP cache first
-	int i=0;
-	const char filename[] = "/proc/net/arp";
-	
-	FILE *file = fopen(filename, "r");
-	if (file)
-	{
-		char line [BUFSIZ];
-		fgets(line, sizeof line, file);
-		while (fgets(line, sizeof line, file))
-		{
-			char a,b,c,d;
-			if(sscanf(line, "%s %s %s %s %s %s", &ip,&a, &b, &mac, &c, &d) < 10)
-			{
-				if(strcmp(ip_req,ip) == 0) 
-				{
-					printf("Found in the cache: %s\n",mac);
-					return;
-				}
-			}
-		}
-	}
-	else
-	{
-		perror(filename);
-	}
-	
-	//Did not find in the APR cache, use arping
-	FILE *fp;
-	int status;
-	char path[1035];
-	char cmd[1024];
-	char *p;	
-	i=1;
-	
-	sprintf(cmd,"arping -c1 -I %s %s",inter_face,ip_req);
-	
-	fp = popen(cmd, "r");
-	if (fp == NULL) 
-	{
-		printf("Failed to run command\n" );
-	}
-	
-	while (fgets(path, sizeof(path)-1, fp) != NULL) 
-	{
-		if((p = strchr(path, '[')) != NULL) 
-		{
-			while(p[i] != ']') 
-			{
-				mac[i-1] = p[i];
-				i++;		
-			}
-			mac[i-1] = '\0';
-		}
-	}	
-	pclose(fp);
-	
-	//sprintf(cmd,"arp -s %s %s",ip_req,mac);
-	//system(cmd);	
-}
-
 void getArrayFromString(char* str1)
 {
 	char c = ' ';
