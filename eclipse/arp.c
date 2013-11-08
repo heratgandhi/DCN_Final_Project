@@ -27,6 +27,34 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 
 char* get_Mac_ARP(char* target_ip_string,char *if_name)
 {
+	int i=0;
+	const char filename[] = "/proc/net/arp";
+	char ip_l[16];
+
+	FILE *file = fopen(filename, "r");
+	if (file)
+	{
+		char line [BUFSIZ];
+		fgets(line, sizeof line, file);
+		while (fgets(line, sizeof line, file))
+		{
+			char a,b,c,d;
+			if(sscanf(line, "%s %s %s %s %s %s", &ip_l,&a, &b, &arp_ans, &c, &d) < 10)
+			{
+				if(strcmp(target_ip_string,ip_l) == 0)
+				{
+						printf("Found in the cache: %s\n",arp_ans);
+						return arp_ans;
+				}
+			}
+		}
+	}
+	else
+	{
+		perror(filename);
+	}
+
+	//Did not find in the APR cache, use arping
     strcpy(check_ip,target_ip_string);
 
     // Construct Ethernet header (except for source MAC address).
