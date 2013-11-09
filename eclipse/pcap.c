@@ -37,7 +37,7 @@ void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
     // Start capturing packets.
     if (pcap_loop(pd, packets, func, dump) < 0)
 	{
-		printf("pcap_loop failed: %s\n", pcap_geterr(pd));
+		//printf("pcap_loop failed: %s\n", pcap_geterr(pd));
 	}
 }
 
@@ -246,6 +246,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
 void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
+
     struct ip* iphdr;
     struct icmphdr* icmphdr;
     struct tcphdr* tcphdr;
@@ -263,13 +264,14 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     iphdr = (struct ip*)packetptr;
     strcpy(srcip, inet_ntoa(iphdr->ip_src));
     strcpy(dstip, inet_ntoa(iphdr->ip_dst));
+
     sprintf(iphdrInfo, "ID:%d TOS:0x%x, TTL:%d IpLen:%d DgLen:%d",
             ntohs(iphdr->ip_id), iphdr->ip_tos, iphdr->ip_ttl,
             4*iphdr->ip_hl, ntohs(iphdr->ip_len));
 
     // Advance to the transport layer header then parse and display
     // the fields based on the type of hearder: tcp, udp or icmp.
-    packetptr += 4*iphdr->ip_hl;
+    //packetptr += 4*iphdr->ip_hl;
 
     /*switch (iphdr->ip_p)
     {

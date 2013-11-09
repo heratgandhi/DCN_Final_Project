@@ -27,7 +27,7 @@ Testing Enviornment:
 	Both these networks are not reachable to each other by any means.
 	The only way to communicate from VM-1 to VM-3 is to use firewall code.
 
-        The firewall code runs on the VM-2.					
+    The firewall code runs on the VM-2.					
 
 How to compile & run?:
 	To compile, use the following command:

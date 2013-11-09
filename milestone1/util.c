@@ -188,14 +188,24 @@ int matchWithRules(char* src, char* dest)
 			if(strcmp(src_ip_l,src) == 0 && strcmp(dst_ip_l,dest) == 0)
 			{
 				if(decision == PASS)
+				{
+					fclose(fp_rules);
 					return 1;
+				}
 				else if(decision == BLOCK)
+				{
+					fclose(fp_rules);
 					return 0;
+				}
 				else if(decision == REJECT)
+				{
+					fclose(fp_rules);
 					return -1;
+				}
 			}
 		}
 	}
+	fclose(fp_rules);
 	return default_dec;
 }
 
