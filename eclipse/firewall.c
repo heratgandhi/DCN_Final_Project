@@ -27,9 +27,13 @@ void func2()
 	pthread_exit(NULL);
 }
 
+void func3()
+{
+	pthread_exit(NULL);
+}
+
 int main(int argc, char **argv)
 {
-	pthread_t threads[2];
 	//Check whether user has entered enough arguments
 	if(argc < 2)
 	{
@@ -42,38 +46,21 @@ int main(int argc, char **argv)
     //If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
     {
-		pid_t childPID;
+    	pthread_t threads[3];
 		//Open the interface handlers
 		in_handle = pcap_open_live(INT_IN,65536,1,0,errbuf);
 		out_handle = pcap_open_live(INT_OUT,65536,1,0,errbuf);
 
+		//Create two threads for two interfaces
 		pthread_create(threads + 0, NULL, func1, (void *) 0);
 		pthread_create(threads + 1, NULL, func2, (void *) 1);
+		pthread_create(threads + 2, NULL, func3, (void *) 2);
 
 		pthread_join(threads[0], NULL);
 		pthread_join(threads[1], NULL);
+		pthread_join(threads[2], NULL);
 
 		pthread_exit(NULL);
-		//Create two processes for two interfaces
-		/*childPID = fork();
-
-		if(childPID >= 0)
-		{
-			//Associate the handlers with the interfaces
-			if(childPID == 0)
-			{
-				capture_loop(in_handle, -1, (pcap_handler)parse_packet, NULL);
-			}
-			else
-			{
-				capture_loop(out_handle, -1, (pcap_handler)parse_packet_p, NULL);
-			}
-		}
-		else
-		{
-			printf("\n Fork failed, quitting!!!!!!\n");
-			return 1;
-		}*/
 	}
     //Else open the input pcap file for the processing and write to output pcap file
 	else

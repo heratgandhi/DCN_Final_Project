@@ -1,5 +1,7 @@
 #include "arp.h"
 #include "pcap.h"
+#include <stdlib.h>
+#include <search.h>
 
 int arp_cnt = 0;
 
