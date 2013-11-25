@@ -33,7 +33,6 @@ void createList(char *file)
 	int rule_p = 0;
 	int len;
 	int def_rule;
-	char src_ip_1[16],src_ip_2[16],dst_ip_1[16],dst_ip_2[16];
 	rulenode *node;
 	rulenode *pnode = NULL;
 	int mode;
