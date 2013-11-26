@@ -27,21 +27,21 @@
 #define MAC_IN "00:0c:29:91:87:9a"
 #define MAC_OUT "00:0c:29:91:87:a4"
 
-#define IP_IN "10.1.1.128"
-#define IP_OUT "20.1.1.129"
+#define IP_IN "10.1.1.130"
+#define IP_OUT "20.1.1.130"
 
 #define NET_IN "10.1.1.0"
 #define NET_OUT "20.1.1.0"
 
-#define SUB_IN "255.255.255.0"
-#define SUB_OUT "255.255.255.0"
+#define SUB_IN 24
+#define SUB_OUT 24
 
 #define true 1
 #define false 0
 
-#define BLOCK 1
-#define PASS 2
-#define REJECT 3
+#define BLOCK 0
+#define PASS 1
+#define REJECT -1
 
 extern pcap_t* in_handle;
 extern pcap_t* out_handle;

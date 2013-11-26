@@ -107,7 +107,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     printf(
         "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");*/
 
-	if(!IsIPInRange(dstip,NET_OUT,SUB_OUT))
+	if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT))
 	{
 		return;
 	}
@@ -209,7 +209,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     printf(
         "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");*/
 
-	if(!IsIPInRange(dstip,NET_IN,SUB_IN))
+	if(!isIPInSubnet(dstip,NET_IN,SUB_IN))
 	{
 		return;
 	}

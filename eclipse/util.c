@@ -1,4 +1,5 @@
 #include "util.h"
+#include "rules.h"
 
 //Compute the checksum value
 unsigned short in_cksum(unsigned short *addr, int len)
@@ -118,109 +119,22 @@ int isIPInRange(char *ip,char *start_ip,char *end_ip)
 //Simple rule matching engine
 int matchWithRules(char* src, char* dest)
 {
-	FILE* fp_rules = fopen("rules","r");
-	char* ptr;
-	char str[256];
-	int i = 0;
-	int default_dec = -1;
-	int rule_p = 0;
-	int len;
-	int def_rule;
-	char src_ip_l[16],dst_ip_l[16];
-	int decision;
-
-	while(fgets(str, 255, fp_rules) != NULL)
+	rulenode* temp = head;
+	int default_dec = -3;
+	int decision = 1;
+	while(temp != NULL)
 	{
-		if(str[0] == '#')
-			continue;
-		ptr = strtok(str, " ");
-		rule_p = 0;
-		def_rule = 0;
-		while(ptr != NULL)
+		if(temp->default_rule == 1)
 		{
-			len = strlen(ptr);
-			if(ptr[len-1] == '\n')
-			{
-				ptr[len-1] = '\0';
-				len--;
-			}
-			//printf("%s %d\n",ptr,strlen(ptr));
-			if(rule_p == 0 && strcmp(ptr,"default") == 0)
-			{
-				def_rule = 1;
-			}
-			if(def_rule)
-			{
-				if(strcmp(ptr,"off") == 0)
-				{
-					default_dec = 0;
-				}
-				if(strcmp(ptr,"on") == 0)
-				{
-					default_dec = 1;
-				}
-			}
-			else
-			{
-				switch(rule_p)
-				{
-					case 0:
-						if(strcmp(ptr,"pass") == 0)
-						{
-							decision = PASS;
-						}
-						else if(strcmp(ptr,"reject") == 0)
-						{
-							decision = REJECT;
-						}
-						else
-						{
-							decision = BLOCK;
-						}
-					break;
-					case 1:
-						strcpy(src_ip_l,ptr);
-					break;
-					case 2:
-					break;
-					case 3:
-					break;
-					case 4:
-						strcpy(dst_ip_l,ptr);
-					break;
-					case 5:
-					break;
-					case 6:
-					break;
-				}
-			}
-			ptr = strtok(NULL, " ");
-			rule_p++;
+			default_dec = temp->result;
 		}
-		i = 0;
-		if(!def_rule)
+		else if(isIPInSubnet(src,temp->src_ip1,temp->src_subnet1) &&
+				isIPInSubnet(dest,temp->dst_ip1,temp->dst_subnet1))
 		{
-			if(strcmp(src_ip_l,src) == 0 && strcmp(dst_ip_l,dest) == 0)
-			{
-				if(decision == PASS)
-				{
-					fclose(fp_rules);
-					return 1;
-				}
-				else if(decision == BLOCK)
-				{
-					fclose(fp_rules);
-					return 0;
-				}
-				else if(decision == REJECT)
-				{
-					fclose(fp_rules);
-					return -1;
-				}
-			}
+			return temp->result;
 		}
+		temp = temp->next;
 	}
-	fclose(fp_rules);
 	return default_dec;
 }
 

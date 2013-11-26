@@ -1,7 +1,5 @@
 #include "rules.h"
 
-rulenode* head;
-
 void initialize(rulenode *ptr)
 {
 	strcpy(ptr->src_ip1,"");

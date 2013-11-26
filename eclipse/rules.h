@@ -22,5 +22,8 @@ typedef struct rulenode
 	char protocol[5];
 	int default_rule;
 	int result;
-	rulenode* next;
+	struct rulenode* next;
 }rulenode;
+
+rulenode* head;
+void createList(char *file);

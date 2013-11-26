@@ -1,5 +1,6 @@
 #include "arp.h"
 #include "pcap.h"
+#include "rules.h"
 #include <pthread.h>
 
 pcap_t* in_handle;
@@ -17,12 +18,14 @@ char arp_ans[18];
 
 void func1()
 {
+	printf("Thread-1 Started.\n");
 	capture_loop(in_handle, -1, (pcap_handler)parse_packet, NULL);
 	pthread_exit(NULL);
 }
 
 void func2()
 {
+	printf("Thread-2 Started.\n");
 	capture_loop(out_handle, -1, (pcap_handler)parse_packet_p, NULL);
 	pthread_exit(NULL);
 }
@@ -42,6 +45,7 @@ int main(int argc, char **argv)
 	}
     char errbuf[100];
     int mode = atoi(argv[1]);
+    createList("rules");
 
     //If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
