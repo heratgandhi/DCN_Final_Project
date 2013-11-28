@@ -1,6 +1,7 @@
 #include "arp.h"
 #include "pcap.h"
 #include "rules.h"
+#include "state.h"
 #include <pthread.h>
 
 pcap_t* in_handle;
@@ -47,6 +48,8 @@ int main(int argc, char **argv)
     int mode = atoi(argv[1]);
     createList("rules");
 
+	hcreate(50);
+
     //If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
     {
@@ -84,5 +87,7 @@ int main(int argc, char **argv)
 		//Process all the packets from the file
 		capture_loop(in_handle, -1, (pcap_handler)parse_packet_file, (u_char*)dumper);
 	}
+
+    hdestroy();
     return 0;
 }

@@ -1,6 +1,72 @@
 #include "pcap.h"
 #include "arp.h"
 #include "util.h"
+#include "state.h"
+
+int lock = 0;
+
+void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
+{
+	ENTRY e1;
+
+	struct icmphdr* icmphdr;
+	struct tcphdr* tcphdr;
+	struct udphdr* udphdr;
+
+	keyStruct key;
+	valStruct* val;
+
+	strcpy(key.src_ip, inet_ntoa(iphdr->ip_src));
+	strcpy(key.dst_ip, inet_ntoa(iphdr->ip_dst));
+
+	if(protocol == IPPROTO_TCP)
+	{
+		tcphdr = (struct tcphdr*) other_p;
+		key.sport = ntohs(tcphdr->source);
+		key.dport = ntohs(tcphdr->dest);
+
+		val->protocol = IPPROTO_TCP;
+		val->state = 1;
+		val->valid = 1;
+		val->identifier = -1;
+		val->sequence = -1;
+		val->timestamp = time(0);
+	}
+	else if(protocol == IPPROTO_UDP)
+	{
+		udphdr = (struct udphdr*) other_p;
+		key.sport = ntohs(udphdr->source);
+		key.dport = ntohs(udphdr->dest);
+
+		val->protocol = IPPROTO_UDP;
+		val->state = -1;
+		val->valid = 1;
+		val->identifier = -1;
+		val->sequence = -1;
+		val->timestamp = time(0);
+	}
+	else if(protocol == IPPROTO_ICMP)
+	{
+		icmphdr = (struct icmphdr*) other_p;
+		memcpy(&key.sport, (u_char*)icmphdr+4, 2);//identifier
+		memcpy(&key.dport, (u_char*)icmphdr+6, 2);//sequence
+
+		val->protocol = IPPROTO_ICMP;
+		val->state = -1;
+		val->valid = 1;
+		val->identifier = key.sport;
+		val->sequence = key.dport;
+		val->timestamp = time(0);
+	}
+
+	e1.key = (keyStruct*)&key;
+	e1.data = (valStruct*)val;
+
+	while(lock != 0);
+	lock = 1;
+	hsearch(e1,ENTER);
+	lock = 0;
+}
 
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
 {
@@ -51,6 +117,9 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     unsigned short id, seq;
     int i;
     int decision_p;
+    int decision_t;
+    int proto;
+    void *other_p;
 
     struct ethhdr *eth = (struct ethhdr *)packetptr;
 
@@ -69,63 +138,57 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 
     printf("1 %s %s\n",srcip,dstip);
 
-    /*switch (iphdr->ip_p)
+    if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT))
+	{
+		return;
+	}
+
+    switch (iphdr->ip_p)
     {
-    case IPPROTO_TCP:
-        tcphdr = (struct tcphdr*)packetptr;
-        printf("TCP  %s:%d -> %s:%d\n", srcip, ntohs(tcphdr->source),
-               dstip, ntohs(tcphdr->dest));
-        printf("%s\n", iphdrInfo);
-        printf("%c%c%c%c%c%c Seq: 0x%x Ack: 0x%x Win: 0x%x TcpLen: %d\n",
-               (tcphdr->urg ? 'U' : '*'),
-               (tcphdr->ack ? 'A' : '*'),
-               (tcphdr->psh ? 'P' : '*'),
-               (tcphdr->rst ? 'R' : '*'),
-               (tcphdr->syn ? 'S' : '*'),
-               (tcphdr->fin ? 'F' : '*'),
-               ntohl(tcphdr->seq), ntohl(tcphdr->ack_seq),
-               ntohs(tcphdr->window), 4*tcphdr->doff);
-        break;
+		case IPPROTO_TCP:
+			tcphdr = (struct tcphdr*)packetptr;
+			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP);
+			other_p = tcphdr;
+			proto = IPPROTO_TCP;
+			break;
 
-    case IPPROTO_UDP:
-        udphdr = (struct udphdr*)packetptr;
-        printf("UDP  %s:%d -> %s:%d\n", srcip, ntohs(udphdr->source),
-               dstip, ntohs(udphdr->dest));
-        printf("%s\n", iphdrInfo);
-        break;
+		case IPPROTO_UDP:
+			udphdr = (struct udphdr*)packetptr;
+			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP);
+			other_p = udphdr;
+			proto = IPPROTO_UDP;
+			break;
 
-    case IPPROTO_ICMP:
-        icmphdr = (struct icmphdr*)packetptr;
-        printf("ICMP %s -> %s\n", srcip, dstip);
-        printf("%s\n", iphdrInfo);
-        memcpy(&id, (u_char*)icmphdr+4, 2);
-        memcpy(&seq, (u_char*)icmphdr+6, 2);
-        printf("Type:%d Code:%d ID:%d Seq:%d\n", icmphdr->type, icmphdr->code,
-               ntohs(id), ntohs(seq));
-        break;
+		case IPPROTO_ICMP:
+			icmphdr = (struct icmphdr*)packetptr;
+			memcpy(&id, (u_char*)icmphdr+4, 2);
+			memcpy(&seq, (u_char*)icmphdr+6, 2);
+			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP);
+			other_p = icmphdr;
+			proto = IPPROTO_ICMP;
+			break;
     }
-    printf(
-        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");*/
-
-	if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT))
-	{
-		return;
-	}
-
-	decision_p = matchWithRules(srcip,dstip);
-	if(decision_p == 0)
-	{
-		printf("Drop!\n");
-		return;
-	}
-	else if(decision_p == -1)
-	{
-		printf("Reject!\n");
-		SendICMPError(dstip,srcip);
-		return;
-	}
-
-	getArrayFromString(MAC_OUT);
+    if(decision_t == -1)
+    {
+    	return;
+    }
+    if(decision_t == 0)
+    {
+    	decision_p = matchWithRules(srcip,dstip);
+		if(decision_p == 0)
+		{
+			printf("Drop!\n");
+			return;
+		}
+		else if(decision_p == -1)
+		{
+			printf("Reject!\n");
+			SendICMPError(dstip,srcip);
+			return;
+		}
+		insert_in_table(iphdr,other_p,proto);
+    }
+    getArrayFromString(MAC_OUT);
 	for(i=0;i<6;i++)
 	{
 		eth->h_source[i] = mac_t[i];
@@ -141,6 +204,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 	}
 
 	printf("1 %d\n",pcap_inject(out_handle,eth,packethdr->len));
+
 }
 
 void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
@@ -153,6 +217,9 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     unsigned short id, seq;
     int i;
     int decision_p;
+    int decision_t;
+	int proto;
+	void *other_p;
 
     struct ethhdr *eth = (struct ethhdr *)packetptr;
 
@@ -171,60 +238,56 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
     printf("2 %s %s\n",srcip,dstip);
 
-    /*switch (iphdr->ip_p)
+    if(!isIPInSubnet(dstip,NET_IN,SUB_IN))
+	{
+		return;
+	}
+
+    switch (iphdr->ip_p)
     {
-    case IPPROTO_TCP:
-        tcphdr = (struct tcphdr*)packetptr;
-        printf("TCP  %s:%d -> %s:%d\n", srcip, ntohs(tcphdr->source),
-               dstip, ntohs(tcphdr->dest));
-        printf("%s\n", iphdrInfo);
-        printf("%c%c%c%c%c%c Seq: 0x%x Ack: 0x%x Win: 0x%x TcpLen: %d\n",
-               (tcphdr->urg ? 'U' : '*'),
-               (tcphdr->ack ? 'A' : '*'),
-               (tcphdr->psh ? 'P' : '*'),
-               (tcphdr->rst ? 'R' : '*'),
-               (tcphdr->syn ? 'S' : '*'),
-               (tcphdr->fin ? 'F' : '*'),
-               ntohl(tcphdr->seq), ntohl(tcphdr->ack_seq),
-               ntohs(tcphdr->window), 4*tcphdr->doff);
-        break;
+		case IPPROTO_TCP:
+			tcphdr = (struct tcphdr*)packetptr;
+			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP);
+			other_p = tcphdr;
+			proto = IPPROTO_TCP;
+			break;
 
-    case IPPROTO_UDP:
-        udphdr = (struct udphdr*)packetptr;
-        printf("UDP  %s:%d -> %s:%d\n", srcip, ntohs(udphdr->source),
-               dstip, ntohs(udphdr->dest));
-        printf("%s\n", iphdrInfo);
-        break;
+		case IPPROTO_UDP:
+			udphdr = (struct udphdr*)packetptr;
+			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP);
+			other_p = udphdr;
+			proto = IPPROTO_UDP;
+			break;
 
-    case IPPROTO_ICMP:
-        icmphdr = (struct icmphdr*)packetptr;
-        printf("ICMP %s -> %s\n", srcip, dstip);
-        printf("%s\n", iphdrInfo);
-        memcpy(&id, (u_char*)icmphdr+4, 2);
-        memcpy(&seq, (u_char*)icmphdr+6, 2);
-        printf("Type:%d Code:%d ID:%d Seq:%d\n", icmphdr->type, icmphdr->code,
-               ntohs(id), ntohs(seq));
-        break;
+		case IPPROTO_ICMP:
+			icmphdr = (struct icmphdr*)packetptr;
+			memcpy(&id, (u_char*)icmphdr+4, 2);
+			memcpy(&seq, (u_char*)icmphdr+6, 2);
+			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP);
+			other_p = icmphdr;
+			proto = IPPROTO_ICMP;
+			break;
     }
-    printf(
-        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");*/
 
-	if(!isIPInSubnet(dstip,NET_IN,SUB_IN))
+	if(decision_t == -1)
 	{
 		return;
 	}
-
-	decision_p = matchWithRules(srcip,dstip);
-	if(decision_p == 0)
+	if(decision_t == 0)
 	{
-		printf("Drop!\n");
-		return;
-	}
-	else if(decision_p == -1)
-	{
-		printf("Reject!\n");
-		SendICMPError(dstip,srcip);
-		return;
+		decision_p = matchWithRules(srcip,dstip);
+		if(decision_p == 0)
+		{
+			printf("Drop!\n");
+			return;
+		}
+		else if(decision_p == -1)
+		{
+			printf("Reject!\n");
+			SendICMPError(dstip,srcip);
+			return;
+		}
+		insert_in_table(iphdr,other_p,proto);
 	}
 
 	getArrayFromString(MAC_IN);
@@ -256,6 +319,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     int i;
 
     u_char *backup = packetptr;
+    struct pcap_pkthdr* backup2 = packethdr;
 
     struct ethhdr *eth = (struct ethhdr *)packetptr;
 
@@ -271,49 +335,28 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
 
     // Advance to the transport layer header then parse and display
     // the fields based on the type of hearder: tcp, udp or icmp.
-    //packetptr += 4*iphdr->ip_hl;
+    packetptr += 4*iphdr->ip_hl;
 
-    /*switch (iphdr->ip_p)
+    switch (iphdr->ip_p)
     {
-    case IPPROTO_TCP:
-        tcphdr = (struct tcphdr*)packetptr;
-        printf("TCP  %s:%d -> %s:%d\n", srcip, ntohs(tcphdr->source),
-               dstip, ntohs(tcphdr->dest));
-        printf("%s\n", iphdrInfo);
-        printf("%c%c%c%c%c%c Seq: 0x%x Ack: 0x%x Win: 0x%x TcpLen: %d\n",
-               (tcphdr->urg ? 'U' : '*'),
-               (tcphdr->ack ? 'A' : '*'),
-               (tcphdr->psh ? 'P' : '*'),
-               (tcphdr->rst ? 'R' : '*'),
-               (tcphdr->syn ? 'S' : '*'),
-               (tcphdr->fin ? 'F' : '*'),
-               ntohl(tcphdr->seq), ntohl(tcphdr->ack_seq),
-               ntohs(tcphdr->window), 4*tcphdr->doff);
-        break;
+		case IPPROTO_TCP:
+			tcphdr = (struct tcphdr*)packetptr;
+			break;
 
-    case IPPROTO_UDP:
-        udphdr = (struct udphdr*)packetptr;
-        printf("UDP  %s:%d -> %s:%d\n", srcip, ntohs(udphdr->source),
-               dstip, ntohs(udphdr->dest));
-        printf("%s\n", iphdrInfo);
-        break;
+		case IPPROTO_UDP:
+			udphdr = (struct udphdr*)packetptr;
+			break;
 
-    case IPPROTO_ICMP:
-        icmphdr = (struct icmphdr*)packetptr;
-        printf("ICMP %s -> %s\n", srcip, dstip);
-        printf("%s\n", iphdrInfo);
-        memcpy(&id, (u_char*)icmphdr+4, 2);
-        memcpy(&seq, (u_char*)icmphdr+6, 2);
-        printf("Type:%d Code:%d ID:%d Seq:%d\n", icmphdr->type, icmphdr->code,
-               ntohs(id), ntohs(seq));
-        break;
+		case IPPROTO_ICMP:
+			icmphdr = (struct icmphdr*)packetptr;
+			memcpy(&id, (u_char*)icmphdr+4, 2);
+			memcpy(&seq, (u_char*)icmphdr+6, 2);
+			break;
     }
-    printf(
-        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");*/
 
 	if(matchWithRules(srcip,dstip))
 	{
 		//write the packet to the pcap file
-		pcap_dump(user, packethdr, backup);
+		pcap_dump(user, backup2, backup);
 	}
 }

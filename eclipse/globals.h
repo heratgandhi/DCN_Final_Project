@@ -1,3 +1,6 @@
+#define _GNU_SOURCE
+#include <search.h>
+
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +23,7 @@
 #include <netinet/if_ether.h>
 #include <sys/ioctl.h>
 #include <net/if_arp.h>
+#include <time.h>
 
 #define INT_IN "eth1"
 #define INT_OUT "eth2"

@@ -4,7 +4,8 @@ all:
 	gcc -c pcap.c
 	gcc -c arp.c
 	gcc -c firewall.c
-	gcc -o firewall firewall.o rules.o util.o pcap.o arp.o -lpcap -lpthread
+	gcc -c state.c
+	gcc -o firewall firewall.o rules.o util.o pcap.o arp.o state.o -lpcap -lpthread
 
 clean:
 	rm *.o
