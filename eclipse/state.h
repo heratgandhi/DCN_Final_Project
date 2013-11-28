@@ -21,4 +21,4 @@ typedef struct valStruct
 	int timestamp;
 }valStruct;
 
-int updateState(struct ip* iphdr, void * other_p, int protocol);
+int updateState(struct ip* iphdr, void * other_p, int protocol,int proc);

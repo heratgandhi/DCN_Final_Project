@@ -55,7 +55,7 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 			{
 				if(strcmp(target_ip_string,ip_l) == 0)
 				{
-						printf("Found in the cache: %s\n",arp_ans);
+						//printf("Found in the cache: %s\n",arp_ans);
 						return arp_ans;
 				}
 			}
@@ -163,6 +163,6 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 
     // Close the PCAP descriptor.
     pcap_close(arp_pcap);
-    printf("MAC: %s\n",arp_ans);
+    //printf("MAC: %s\n",arp_ans);
     return arp_ans;
 }
