@@ -14,7 +14,9 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 	struct udphdr* udphdr;
 
 	keyStruct key;
-	valStruct* val;
+	valStruct val;
+
+	int ticmp;
 
 	strcpy(key.src_ip, inet_ntoa(iphdr->ip_src));
 	strcpy(key.dst_ip, inet_ntoa(iphdr->ip_dst));
@@ -25,12 +27,12 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		key.sport = ntohs(tcphdr->source);
 		key.dport = ntohs(tcphdr->dest);
 
-		val->protocol = IPPROTO_TCP;
-		val->state = 1;
-		val->valid = 1;
-		val->identifier = -1;
-		val->sequence = -1;
-		val->timestamp = time(0);
+		val.protocol = IPPROTO_TCP;
+		val.state = 1;
+		val.valid = 1;
+		val.identifier = -1;
+		val.sequence = -1;
+		val.timestamp = time(0);
 	}
 	else if(protocol == IPPROTO_UDP)
 	{
@@ -38,29 +40,31 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		key.sport = ntohs(udphdr->source);
 		key.dport = ntohs(udphdr->dest);
 
-		val->protocol = IPPROTO_UDP;
-		val->state = -1;
-		val->valid = 1;
-		val->identifier = -1;
-		val->sequence = -1;
-		val->timestamp = time(0);
+		val.protocol = IPPROTO_UDP;
+		val.state = -1;
+		val.valid = 1;
+		val.identifier = -1;
+		val.sequence = -1;
+		val.timestamp = time(0);
 	}
 	else if(protocol == IPPROTO_ICMP)
 	{
 		icmphdr = (struct icmphdr*) other_p;
-		memcpy(&key.sport, (u_char*)icmphdr+4, 2);//identifier
-		memcpy(&key.dport, (u_char*)icmphdr+6, 2);//sequence
+		memcpy(&ticmp, (u_char*)icmphdr+4, 2);//identifier
+		key.sport = ntohs(ticmp);
+		memcpy(&ticmp, (u_char*)icmphdr+6, 2);//sequence
+		key.dport = ntohs(ticmp);
 
-		val->protocol = IPPROTO_ICMP;
-		val->state = -1;
-		val->valid = 1;
-		val->identifier = key.sport;
-		val->sequence = key.dport;
-		val->timestamp = time(0);
+		val.protocol = IPPROTO_ICMP;
+		val.state = -1;
+		val.valid = 1;
+		val.identifier = key.sport;
+		val.sequence = key.dport;
+		val.timestamp = time(0);
 	}
 
 	e1.key = (keyStruct*)&key;
-	e1.data = (valStruct*)val;
+	e1.data = (valStruct*)&val;
 
 	while(lock != 0);
 	lock = 1;
@@ -186,7 +190,9 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			SendICMPError(dstip,srcip);
 			return;
 		}
+		printf("Inserting in table.\n");
 		insert_in_table(iphdr,other_p,proto);
+		printf("Inserted.\n");
     }
     getArrayFromString(MAC_OUT);
 	for(i=0;i<6;i++)

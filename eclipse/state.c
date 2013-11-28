@@ -10,6 +10,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol)
 
 	keyStruct key1,key2;
 	valStruct* val;
+	int ticmp;
 
 	strcpy(key1.src_ip, inet_ntoa(iphdr->ip_src));
 	strcpy(key1.dst_ip, inet_ntoa(iphdr->ip_dst));
@@ -35,10 +36,12 @@ int updateState(struct ip* iphdr, void * other_p, int protocol)
 	else if(protocol == IPPROTO_ICMP)
 	{
 		icmphdr = (struct icmphdr*) other_p;
-		memcpy(&key1.sport, (u_char*)icmphdr+4, 2);//identifier
-        memcpy(&key1.dport, (u_char*)icmphdr+6, 2);//sequence
-        memcpy(&key2.sport, (u_char*)icmphdr+4, 2);//identifier
-		memcpy(&key2.dport, (u_char*)icmphdr+6, 2);//sequence
+		memcpy(&ticmp, (u_char*)icmphdr+4, 2);//identifier
+		key1.sport = ntohs(ticmp);
+		memcpy(&ticmp, (u_char*)icmphdr+6, 2);//sequence
+		key1.dport = ntohs(ticmp);
+		key2.sport = key1.dport;//identifier
+		key2.dport = key1.sport;//sequence
 	}
 
 	e1.key = (keyStruct*) &key1;
