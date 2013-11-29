@@ -143,6 +143,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     int decision_t;
     int proto;
     void *other_p;
+    int sport, dport;
 
     struct ethhdr *eth = (struct ethhdr *)packetptr;
 
@@ -173,6 +174,8 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,1);
 			other_p = tcphdr;
 			proto = IPPROTO_TCP;
+			sport = ntohs(tcphdr->source);
+			dport = ntohs(tcphdr->dest);
 			break;
 
 		case IPPROTO_UDP:
@@ -180,6 +183,8 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,1);
 			other_p = udphdr;
 			proto = IPPROTO_UDP;
+			sport = ntohs(udphdr->source);
+			dport = ntohs(udphdr->dest);
 			break;
 
 		case IPPROTO_ICMP:
@@ -189,6 +194,8 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			//printf("~~~ %s %s %d %d\n",srcip,dstip,ntohs(id),ntohs(seq));
 			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1);
 			other_p = icmphdr;
+			sport = -1;
+			dport = -1;
 			proto = IPPROTO_ICMP;
 			break;
     }
@@ -198,7 +205,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     }
     if(decision_t == 0)
     {
-    	decision_p = matchWithRules(srcip,dstip);
+    	decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
 		if(decision_p == 0)
 		{
 			printf("Drop!\n");
@@ -243,6 +250,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     int decision_t;
 	int proto;
 	void *other_p;
+	int sport,dport;
 
     struct ethhdr *eth = (struct ethhdr *)packetptr;
 
@@ -273,6 +281,8 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,2);
 			other_p = tcphdr;
 			proto = IPPROTO_TCP;
+			sport = ntohs(tcphdr->source);
+			dport = ntohs(tcphdr->dest);
 			break;
 
 		case IPPROTO_UDP:
@@ -280,6 +290,8 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,2);
 			other_p = udphdr;
 			proto = IPPROTO_UDP;
+			sport = ntohs(udphdr->source);
+			dport = ntohs(udphdr->dest);
 			break;
 
 		case IPPROTO_ICMP:
@@ -289,6 +301,8 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,2);
 			other_p = icmphdr;
 			proto = IPPROTO_ICMP;
+			sport = -1;
+			dport = -1;
 			break;
     }
 
@@ -298,7 +312,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 	}
 	if(decision_t == 0)
 	{
-		decision_p = matchWithRules(srcip,dstip);
+		decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
 		if(decision_p == 0)
 		{
 			printf("Drop!\n");
@@ -340,6 +354,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     char iphdrInfo[256], srcip[256], dstip[256];
     unsigned short id, seq;
     int i;
+    int sport,dport,proto;
 
     u_char *backup = packetptr;
     struct pcap_pkthdr* backup2 = packethdr;
@@ -364,20 +379,29 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     {
 		case IPPROTO_TCP:
 			tcphdr = (struct tcphdr*)packetptr;
+			sport = ntohs(tcphdr->source);
+			dport = ntohs(tcphdr->dest);
+			proto = IPPROTO_TCP;
 			break;
 
 		case IPPROTO_UDP:
 			udphdr = (struct udphdr*)packetptr;
+			sport = ntohs(udphdr->source);
+			dport = ntohs(udphdr->dest);
+			proto = IPPROTO_UDP;
 			break;
 
 		case IPPROTO_ICMP:
 			icmphdr = (struct icmphdr*)packetptr;
 			memcpy(&id, (u_char*)icmphdr+4, 2);
 			memcpy(&seq, (u_char*)icmphdr+6, 2);
+			proto = IPPROTO_ICMP;
+			sport = -1;
+			dport = -1;
 			break;
     }
 
-	if(matchWithRules(srcip,dstip))
+	if(matchWithRules(srcip,dstip,sport,dport,proto))
 	{
 		//write the packet to the pcap file
 		pcap_dump(user, backup2, backup);

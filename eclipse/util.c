@@ -115,27 +115,181 @@ int isIPInRange(char *ip,char *start_ip,char *end_ip)
     return 0;
 }
 
-
-//Simple rule matching engine
-int matchWithRules(char* src, char* dest)
+//Rule matching engine
+int matchWithRules(char* src, char* dest, int sport, int dport, int proto)
 {
 	rulenode* temp = head;
 	int default_dec = -3;
-	int decision = 1;
+	int def_tcp = -3;
+	int def_udp = -3;
+	int def_icmp = -3;
+	int sip,dip,spcon,dpcon,prtcon;
+
 	while(temp != NULL)
 	{
-		if(temp->default_rule == 1)
+		//Default rule for all protocols
+		if(temp->default_rule == 1 && strcmp(temp->protocol,"all") == 0)
 		{
 			default_dec = temp->result;
 		}
-		else if(isIPInSubnet(src,temp->src_ip1,temp->src_subnet1) &&
-				isIPInSubnet(dest,temp->dst_ip1,temp->dst_subnet1))
+		//Default rule for  TCP
+		else if(temp->default_rule == 1 && strcmp(temp->protocol,"tcp") == 0)
 		{
-			return temp->result;
+			def_tcp = temp->result;
 		}
+		//Default rule for UDP
+		else if(temp->default_rule == 1 && strcmp(temp->protocol,"udp") == 0)
+		{
+			def_udp = temp->result;
+		}
+		//Default rule for ICMP
+		else if(temp->default_rule == 1 && strcmp(temp->protocol,"icmp") == 0)
+		{
+			def_icmp = temp->result;
+		}
+		else
+		{
+			sip = 0;
+			dip = 0;
+			spcon = 0;
+			dpcon = 0;
+			prtcon = 0;
+
+			//Match protocol
+			if(proto == IPPROTO_TCP && strcmp(temp->protocol,"tcp") == 0)
+			{
+				prtcon = 1;
+			}
+			else if(proto == IPPROTO_UDP && strcmp(temp->protocol,"udp") == 0)
+			{
+				prtcon = 1;
+			}
+			else if(proto == IPPROTO_TCP && strcmp(temp->protocol,"icmp") == 0)
+			{
+				prtcon = 1;
+			}
+			else if(strcmp(temp->protocol,"all") == 0)
+			{
+				prtcon = 1;
+			}
+
+			//Check for IP addresses
+			if(prtcon == 1)
+			{
+				//Check for the source IP
+				if(strcmp(temp->src_ip1,"any") == 0)
+				{
+					sip = 1;
+				}
+				else if(temp->src_subnet2 == -1)
+				{
+					sip = isIPInSubnet(src,temp->src_ip1,temp->src_subnet1);
+				}
+				else
+				{
+					sip = isIPInRange(src,temp->src_ip1,temp->src_ip2);
+				}
+
+				if(sip == 1)
+				{
+					//Check for the destination IP
+					if(strcmp(temp->dst_ip1,"any") == 0)
+					{
+						dip = 1;
+					}
+					else if(temp->dst_subnet2 == -1)
+					{
+						dip = isIPInSubnet(dest,temp->dst_ip1,temp->dst_subnet1);
+					}
+					else
+					{
+						dip = isIPInRange(dest,temp->dst_ip1,temp->dst_ip2);
+					}
+				}
+
+				if(sip == 1 && dip == 1 && proto != IPPROTO_ICMP)
+				{
+					//Check for the source port
+					if(temp->src_port2 != -1)
+					{
+						if(sport >= temp->src_port1 && sport <= temp->src_port2)
+						{
+							spcon = 1;
+						}
+					}
+					else
+					{
+						if(strcmp(temp->src_port_op,"=") == 0
+								&& temp->src_port1 == sport)
+						{
+							spcon = 1;
+						}
+						else if(strcmp(temp->src_port_op,">") == 0
+								&& sport > temp->src_port1)
+						{
+							spcon = 1;
+						}
+						else if(strcmp(temp->src_port_op,"<") == 0
+								&& sport < temp->src_port1)
+						{
+							spcon = 1;
+						}
+					}
+					if(spcon == 1)
+					{
+						//Check for the destination port
+						if(temp->dst_port2 != -1)
+						{
+							if(dport >= temp->dst_port1 && dport <= temp->dst_port2)
+							{
+								dpcon = 1;
+							}
+						}
+						else
+						{
+							if(strcmp(temp->dst_port_op,"=") == 0
+									&& temp->dst_port1 == dport)
+							{
+								dpcon = 1;
+							}
+							else if(strcmp(temp->dst_port_op,">") == 0
+									&& dport > temp->dst_port1)
+							{
+								dpcon = 1;
+							}
+							else if(strcmp(temp->dst_port_op,"<") == 0
+									&& dport < temp->dst_port1)
+							{
+								dpcon = 1;
+							}
+						}
+					}
+				}
+				else if(proto == IPPROTO_ICMP)
+				{
+					spcon = 1;
+					dpcon = 1;
+				}
+			}
+
+			//If everything matched, return the result stored inside the node
+			if(prtcon == 1 && sip == 1 && dip == 1 && spcon == 1 && dpcon == 1)
+			{
+				return temp->result;
+			}
+		}
+		//Consider the next rule in the list
 		temp = temp->next;
 	}
-	return default_dec;
+	//If no matching rule found then apply the default rule
+	if(proto == IPPROTO_TCP && def_tcp != -3)
+		return def_tcp;
+	else if(proto == IPPROTO_UDP && def_udp != -3)
+		return def_udp;
+	else if(proto == IPPROTO_ICMP && def_icmp != -3)
+		return def_icmp;
+	else
+		return default_dec;
 }
 
 //Get MAC address array from the string

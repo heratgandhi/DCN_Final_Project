@@ -18,7 +18,7 @@ void initialize(rulenode *ptr)
 	strcpy(ptr->dst_port_op,"");
 	strcpy(ptr->protocol,"");
 	ptr->default_rule = 0;
-	ptr->result = -1;
+	ptr->result = -8;
 	ptr->next = NULL;
 }
 

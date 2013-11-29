@@ -14,6 +14,6 @@ int isIPInRange(char *ip,char *start_ip,char *end_ip);
 //Check whether IP belongs to the network
 int isIPInSubnet(char* ip, char* network, int mask);
 //Match with the rules
-int matchWithRules(char* src, char* dest);
+int matchWithRules(char* src, char* dest, int sport, int dport, int proto);
 //Get array of MAC address from the string
 void getArrayFromString(char* str1);
