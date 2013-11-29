@@ -36,6 +36,18 @@ void func3()
 	pthread_exit(NULL);
 }
 
+/*void iterList()
+{
+	rulenode* t = head;
+	while(t != NULL)
+	{
+		printf("@ %s %s\n",t->src_ip1,t->dst_ip1);
+		printf("@ %d %d\n",t->src_subnet1,t->dst_subnet1);
+		printf("@ %s %d\n",t->protocol,t->result);
+		t = t->next;
+	}
+}*/
+
 int main(int argc, char **argv)
 {
 	//Check whether user has entered enough arguments
@@ -47,6 +59,7 @@ int main(int argc, char **argv)
     char errbuf[100];
     int mode = atoi(argv[1]);
     createList("rules");
+    //iterList();
 
 	hcreate(50);
 

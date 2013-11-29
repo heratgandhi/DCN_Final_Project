@@ -164,7 +164,7 @@ int matchWithRules(char* src, char* dest, int sport, int dport, int proto)
 			{
 				prtcon = 1;
 			}
-			else if(proto == IPPROTO_TCP && strcmp(temp->protocol,"icmp") == 0)
+			else if(proto == IPPROTO_ICMP && strcmp(temp->protocol,"icmp") == 0)
 			{
 				prtcon = 1;
 			}
@@ -173,7 +173,7 @@ int matchWithRules(char* src, char* dest, int sport, int dport, int proto)
 				prtcon = 1;
 			}
 
-			//Check for IP addresses
+			//Check for IP addresses and ports
 			if(prtcon == 1)
 			{
 				//Check for the source IP
@@ -184,6 +184,7 @@ int matchWithRules(char* src, char* dest, int sport, int dport, int proto)
 				else if(temp->src_subnet2 == -1)
 				{
 					sip = isIPInSubnet(src,temp->src_ip1,temp->src_subnet1);
+					printf("sip: %d",sip);
 				}
 				else
 				{
@@ -271,7 +272,7 @@ int matchWithRules(char* src, char* dest, int sport, int dport, int proto)
 					dpcon = 1;
 				}
 			}
-
+			//printf("Result: %d %d %d %d %d\n",prtcon,sip,dip,spcon,dpcon);
 			//If everything matched, return the result stored inside the node
 			if(prtcon == 1 && sip == 1 && dip == 1 && spcon == 1 && dpcon == 1)
 			{
