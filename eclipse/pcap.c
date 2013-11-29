@@ -3,8 +3,6 @@
 #include "util.h"
 #include "state.h"
 
-int lock = 0;
-
 void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 {
 	ENTRY e1;
@@ -68,10 +66,7 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 	e1.key = (keyStruct*)key;
 	e1.data = (valStruct*)val;
 
-	//while(lock != 0);
-	//lock = 1;
 	hsearch(e1,ENTER);
-	//lock = 0;
 }
 
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
@@ -209,7 +204,6 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 		eth->h_dest[i] = mac_t[i];
 	}
 
-	//sleep(1);
 	printf("1 %d\n",pcap_inject(out_handle,eth,packethdr->len));
 }
 
@@ -310,7 +304,6 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 		eth->h_dest[i] = mac_t[i];
 	}
 
-	//sleep(1);
 	printf("2 %d\n",pcap_inject(in_handle,eth,packethdr->len));
 }
 
