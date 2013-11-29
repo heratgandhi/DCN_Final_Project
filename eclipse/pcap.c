@@ -3,6 +3,26 @@
 #include "util.h"
 #include "state.h"
 
+void insert_in_key_list(keyStruct* node)
+{
+	keyList* new_node = (keyList*)malloc(sizeof(keyList));
+	new_node->key = node;
+	new_node->next = NULL;
+	if(keyListHead == NULL)
+	{
+		keyListHead = new_node;
+	}
+	else
+	{
+		keyList* t = keyListHead;
+		while(t->next != NULL)
+		{
+			t = t->next;
+		}
+		t->next = new_node;
+	}
+}
+
 void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 {
 	ENTRY e1;
@@ -48,13 +68,11 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 	else if(protocol == IPPROTO_ICMP)
 	{
 		icmphdr = (struct icmphdr*) other_p;
-		//memcpy(&ticmp, (u_char*)icmphdr+4, 2);//identifier
-		//key.sport = ntohs(ticmp);
-		//memcpy(&ticmp, (u_char*)icmphdr+6, 2);//sequence
-		//key.dport = ntohs(ticmp);
-		key->sport = 1;
-		key->dport = 1;
-		printf("%s %s %d %d\n",key->src_ip,key->dst_ip,key->sport,key->dport);
+		memcpy(&ticmp, (u_char*)icmphdr+4, 2);//identifier
+		key->sport = ntohs(ticmp);
+		memcpy(&ticmp, (u_char*)icmphdr+6, 2);//sequence
+		key->dport = ntohs(ticmp);
+		//printf("Ins: %s %s %d %d\n",key->src_ip,key->dst_ip,key->sport,key->dport);
 
 		val->protocol = IPPROTO_ICMP;
 		val->state = -1;
@@ -63,8 +81,12 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		val->sequence = key->dport;
 		val->timestamp = time(0);
 	}
-	e1.key = (keyStruct*)key;
+	e1.key = struct_to_char(key);
+	//printf("*** %s\n",e1.key);
+
 	e1.data = (valStruct*)val;
+
+	insert_in_key_list(key);
 
 	hsearch(e1,ENTER);
 }
@@ -164,6 +186,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			icmphdr = (struct icmphdr*)packetptr;
 			memcpy(&id, (u_char*)icmphdr+4, 2);
 			memcpy(&seq, (u_char*)icmphdr+6, 2);
+			//printf("~~~ %s %s %d %d\n",srcip,dstip,ntohs(id),ntohs(seq));
 			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1);
 			other_p = icmphdr;
 			proto = IPPROTO_ICMP;

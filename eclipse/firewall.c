@@ -50,6 +50,8 @@ int main(int argc, char **argv)
 
 	hcreate(50);
 
+	keyListHead = NULL;
+
     //If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
     {

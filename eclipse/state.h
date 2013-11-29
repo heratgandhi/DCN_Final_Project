@@ -21,4 +21,13 @@ typedef struct valStruct
 	int timestamp;
 }valStruct;
 
+typedef struct keyList
+{
+	keyStruct* key;
+	struct keyList* next;
+}keyList;
+
 int updateState(struct ip* iphdr, void * other_p, int protocol,int proc);
+char* struct_to_char(keyStruct* key);
+
+keyList* keyListHead;
