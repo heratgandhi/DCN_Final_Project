@@ -160,7 +160,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     // the fields based on the type of hearder: tcp, udp or icmp.
     packetptr += 4*iphdr->ip_hl;
 
-    //printf("1 %s %s\n",srcip,dstip);
+    printf("1 %s %s\n",srcip,dstip);
 
     if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT))
 	{
