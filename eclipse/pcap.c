@@ -201,6 +201,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     }
     if(decision_t == -1)
     {
+    	printf("Drop!\n");
     	return;
     }
     if(decision_t == 0)

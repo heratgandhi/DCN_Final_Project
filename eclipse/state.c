@@ -85,7 +85,6 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		memcpy(&ticmp, (u_char*)icmphdr+6, 2);//sequence
 		key1->dport = ntohs(ticmp);
 		key2->dport = ntohs(ticmp);
-
 		//printf("%d ^^^ %s %s %d %d\n",proc,key1->src_ip,key1->dst_ip,key1->sport,key1->dport);
 		//printf("%d ^^^ %s %s %d %d\n",proc,key2->src_ip,key2->dst_ip,key2->sport,key2->dport);
 	}
@@ -97,11 +96,46 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	if((ep1 = hsearch(e1,FIND)) == NULL && (ep2 = hsearch(e2,FIND))== NULL)
 	{
 		printf("%d-->Not found in the session table.\n",proc);
-		return 0;
+
+		//Return 0 only if new  session is allowed otherwise return -1
+		if(protocol == IPPROTO_UDP)
+		{
+			//If UDP then we can't do more checking
+			return 0;
+		}
+		if(protocol == IPPROTO_ICMP)
+		{
+			//If ICMP then allow session to establish only for request packets
+			if(icmphdr->type == 8 || icmphdr->type == 13 ||	icmphdr->type == 15 ||
+				icmphdr->type == 17 || icmphdr->type == 35 ||	icmphdr->type == 37 ||
+				icmphdr->type == 33)
+			{
+				return 0;
+			}
+			else
+			{
+				//Check for special ICMP message here that is for TCP or UDP session
+				//else return -1
+				return -1;
+			}
+		}
+		if(protocol == IPPROTO_TCP)
+		{
+			//If TCP then allow session to establish only for SYN packet
+			if(tcphdr->syn == 1)
+			{
+				return 0;
+			}
+			else
+			{
+				return -1;
+			}
+		}
 	}
 	else
 	{
 		printf("%d-->Found in the session table.\n",proc);
+		//Update the entry inside the table
 		if(ep1 != NULL)
 		{
 			val = ep1->data;
@@ -110,7 +144,50 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		{
 			val = ep2->data;
 		}
-		//Update the entry inside the table
+		val->timestamp = time(0);
+		if(protocol == IPPROTO_TCP)
+		{
+			if(val->state == 1)
+			{
+				//SYN seen, now SYN+ACK
+				if(tcphdr->syn && tcphdr->ack)
+					val->state = 2;
+				else
+					return -1;
+			}
+			else if(val->state == 2)
+			{
+				//SYN+ACK seen, now ACK
+				if(tcphdr->ack)
+					val->state = 3;
+				else
+					return -1;
+			}
+			else if(val->state == 3)
+			{
+				//ACK seen, now data,FIN
+				if(tcphdr->fin)
+					val->state = 4;
+				else
+					return -1;
+			}
+			else if(val->state == 4)
+			{
+				//FIN seen, second FIN
+				if(tcphdr->fin)
+					val->state = 5;
+				else
+					return -1;
+			}
+			else if(val->state == 5)
+			{
+				//Two FINs seen, ACK
+				if(tcphdr->ack)
+					val->state = 6;
+				else
+					return -1;
+			}
+		}
 		return 1;
 	}
 	return 0;
