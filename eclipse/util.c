@@ -184,7 +184,6 @@ int matchWithRules(char* src, char* dest, int sport, int dport, int proto)
 				else if(temp->src_subnet2 == -1)
 				{
 					sip = isIPInSubnet(src,temp->src_ip1,temp->src_subnet1);
-					printf("sip: %d",sip);
 				}
 				else
 				{

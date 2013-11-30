@@ -37,6 +37,29 @@ void travel_list()
 	}
 }
 
+int handle_icmp_error(keyStruct* k1,keyStruct *k2)
+{
+	keyList *t = keyListHead;
+	keyStruct* temp;
+	valStruct* val;
+	ENTRY e1,*ep;
+	while(t != NULL)
+	{
+		temp = t->key;
+		if(((strcmp(temp->src_ip,k1->src_ip) == 0) && (strcmp(temp->dst_ip,k1->dst_ip) == 0)) ||
+				((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
+		{
+			e1.key = struct_to_char(temp);
+			ep = hsearch(e1,FIND);
+			val = ep->data;
+			if(val->valid && (val->protocol == IPPROTO_TCP || val->protocol == IPPROTO_UDP))
+				return 1;
+		}
+		t = t->next;
+	}
+	return 0;
+}
+
 int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 {
 	//travel_list();
@@ -116,7 +139,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 			{
 				//Check for special ICMP message here that is for TCP or UDP session
 				//else return -1
-				return -1;
+				return handle_icmp_error(key1,key2);
 			}
 		}
 		if(protocol == IPPROTO_TCP)
@@ -144,7 +167,14 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		{
 			val = ep2->data;
 		}
+
+		if(val->valid == 0)
+		{
+			return -1;
+		}
+
 		val->timestamp = time(0);
+
 		if(protocol == IPPROTO_TCP)
 		{
 			if(val->state == 1)
