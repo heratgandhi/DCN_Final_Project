@@ -168,8 +168,6 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 				//ACK seen, now data,FIN
 				if(tcphdr->fin)
 					val->state = 4;
-				else
-					return -1;
 			}
 			else if(val->state == 4)
 			{
