@@ -33,6 +33,46 @@ void func2()
 
 void func3()
 {
+	printf("Thread-3 Started : Cleanup Thread.\n");
+
+	keyList *t = keyListHead,*prevN = NULL,*delN;
+	keyStruct* temp;
+	valStruct* val;
+	ENTRY e1,*ep;
+
+	while(1)
+	{
+		t = keyListHead;
+		prevN = NULL;
+
+		while(t != NULL)
+		{
+			temp = t->key;
+			e1.key = struct_to_char(temp);
+			ep = hsearch(e1,FIND);
+			val = ep->data;
+			if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
+			{
+				val->valid = 0;
+				if(prevN == NULL)
+					keyListHead = t->next;
+				else
+					prevN->next = t->next;
+				delN = t;
+				t = t->next;
+				free(delN);
+				free(temp);
+			}
+			else
+			{
+				prevN = t;
+				t = t->next;
+			}
+		}
+
+		sleep(60);
+	}
+
 	pthread_exit(NULL);
 }
 

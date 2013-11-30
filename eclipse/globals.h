@@ -47,6 +47,8 @@
 #define PASS 1
 #define REJECT -1
 
+#define TIMEOUT 120
+
 extern pcap_t* in_handle;
 extern pcap_t* out_handle;
 extern FILE* fp;
