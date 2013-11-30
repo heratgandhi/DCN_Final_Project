@@ -62,6 +62,7 @@ void func3()
 				t = t->next;
 				free(delN);
 				free(temp);
+				free(val);
 			}
 			else
 			{
