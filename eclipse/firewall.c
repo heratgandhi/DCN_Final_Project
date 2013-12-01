@@ -42,6 +42,8 @@ void func3()
 
 	while(1)
 	{
+		cleanup_ARP();
+
 		t = keyListHead;
 		prevN = NULL;
 

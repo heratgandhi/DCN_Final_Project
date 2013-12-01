@@ -5,6 +5,95 @@
 
 int arp_cnt = 0;
 
+typedef struct ip_mac
+{
+	char *mac;
+	int timestamp;
+	int valid;
+}ip_mac;
+
+typedef struct arp_list
+{
+	char *ip;
+	struct arp_list* next;
+}arp_list;
+
+arp_list *arpKeyListHead = NULL;
+
+//Insert ARP binding in the list
+void insertInARPList(char *ip)
+{
+	arp_list* new_node = (arp_list*)malloc(sizeof(arp_list));
+	new_node->ip = ip;
+	new_node->next = NULL;
+	if(arpKeyListHead == NULL)
+	{
+		arpKeyListHead = new_node;
+	}
+	else
+	{
+		arp_list* t = arpKeyListHead;
+		while(t->next != NULL)
+		{
+			t = t->next;
+		}
+		t->next = new_node;
+	}
+}
+
+//Insert ARP bining in the table
+void insertInARPTable(char *ip, char *mac)
+{
+	ENTRY e;
+	ip_mac* new_bin = (ip_mac*)malloc(sizeof(ip_mac));
+	char* ip_key = (char*)malloc(sizeof(char)*16);
+
+	new_bin->mac = mac;
+	new_bin->valid = 1;
+	new_bin->timestamp = time(0);
+	strcpy(ip_key,ip);
+	e.key = ip_key;
+
+	insertInARPList(ip_key);
+
+	hsearch(e,ENTER);
+}
+
+//Cleanup old ARP entries
+void cleanup_ARP()
+{
+	arp_list *t = arpKeyListHead,*prevN = NULL,*delN;
+	char* temp;
+	ip_mac* val;
+	ENTRY e1,*ep;
+
+	while(t != NULL)
+	{
+		temp = t->ip;
+		e1.key = temp;
+		ep = hsearch(e1,FIND);
+		val = ep->data;
+		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
+		{
+			val->valid = 0;
+			if(prevN == NULL)
+				arpKeyListHead = t->next;
+			else
+				prevN->next = t->next;
+			delN = t;
+			t = t->next;
+			free(delN);
+			free(temp);
+			free(val);
+		}
+		else
+		{
+			prevN = t;
+			t = t->next;
+		}
+	}
+}
+
 //Pcap handler for ARP packets
 void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
