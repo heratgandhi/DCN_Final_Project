@@ -55,6 +55,7 @@ char* checkInARPTable(char *ip)
 	else
 	{
 		val = ep->data;
+		//printf("Cached: %s\n",val->mac);
 		return val->mac;
 	}
 }
