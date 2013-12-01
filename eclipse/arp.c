@@ -41,6 +41,24 @@ void insertInARPList(char *ip)
 	}
 }
 
+//Check whether IP address exists in the ARP table
+char* checkInARPTable(char *ip)
+{
+	ENTRY e1,*ep;
+	ip_mac *val;
+	e1.key = ip;
+	ep = hsearch(e1,FIND);
+	if(ep == NULL)
+	{
+		return NULL;
+	}
+	else
+	{
+		val = ep->data;
+		return val->mac;
+	}
+}
+
 //Insert ARP bining in the table
 void insertInARPTable(char *ip, char *mac)
 {
@@ -128,9 +146,18 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 //Main function to get the MAC from IP
 char* get_Mac_ARP(char* target_ip_string,char *if_name)
 {
+
 	//First check inside the cache of the OS
 	const char filename[] = "/proc/net/arp";
 	char ip_l[16];
+	char* mac_ans;
+
+	mac_ans = checkInARPTable(target_ip_string);
+	if(mac_ans != NULL)
+	{
+		strcpy(arp_ans,mac_ans);
+		return arp_ans;
+	}
 
 	FILE *file = fopen(filename, "r");
 	if (file)
@@ -144,8 +171,9 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 			{
 				if(strcmp(target_ip_string,ip_l) == 0)
 				{
-						//printf("Found in the cache: %s\n",arp_ans);
-						return arp_ans;
+					//printf("Found in the cache: %s\n",arp_ans);
+					insertInARPTable(target_ip_string,arp_ans);
+					return arp_ans;
 				}
 			}
 		}
@@ -175,7 +203,8 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 
     // Convert target IP address from string, copy into ARP request.
     struct in_addr target_ip_addr={0};
-    if (!inet_aton(target_ip_string,&target_ip_addr)) {
+    if (!inet_aton(target_ip_string,&target_ip_addr))
+    {
        fprintf(stderr,"%s is not a valid IP address",target_ip_string);
        exit(1);
     }
@@ -185,23 +214,28 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
     // for obtaining the source MAC and IP addresses.
     struct ifreq ifr;
     size_t if_name_len=strlen(if_name);
-    if (if_name_len<sizeof(ifr.ifr_name)) {
+    if (if_name_len<sizeof(ifr.ifr_name))
+    {
         memcpy(ifr.ifr_name,if_name,if_name_len);
         ifr.ifr_name[if_name_len]=0;
-    } else {
+    }
+    else
+    {
         fprintf(stderr,"interface name is too long");
         exit(1);
     }
 
     // Open an IPv4-family socket for use when calling ioctl.
     int fd=socket(AF_INET,SOCK_DGRAM,0);
-    if (fd==-1) {
+    if (fd==-1)
+    {
         perror(0);
         exit(1);
     }
 
     // Obtain the source IP address, copy into ARP request
-    if (ioctl(fd,SIOCGIFADDR,&ifr)==-1) {
+    if (ioctl(fd,SIOCGIFADDR,&ifr)==-1)
+    {
         perror(0);
         close(fd);
         exit(1);
@@ -210,12 +244,14 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
     memcpy(&req.arp_spa,&source_ip_addr->sin_addr.s_addr,sizeof(req.arp_spa));
 
     // Obtain the source MAC address, copy into Ethernet header and ARP request.
-    if (ioctl(fd,SIOCGIFHWADDR,&ifr)==-1) {
+    if (ioctl(fd,SIOCGIFHWADDR,&ifr)==-1)
+    {
         perror(0);
         close(fd);
         exit(1);
     }
-    if (ifr.ifr_hwaddr.sa_family!=ARPHRD_ETHER) {
+    if (ifr.ifr_hwaddr.sa_family!=ARPHRD_ETHER)
+    {
         fprintf(stderr,"not an Ethernet interface");
         close(fd);
         exit(1);
@@ -234,15 +270,18 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
     char pcap_errbuf[PCAP_ERRBUF_SIZE];
     pcap_errbuf[0]='\0';
     arp_pcap=pcap_open_live(if_name,96,0,0,pcap_errbuf);
-    if (pcap_errbuf[0]!='\0') {
+    if (pcap_errbuf[0]!='\0')
+    {
         fprintf(stderr,"%s\n",pcap_errbuf);
     }
-    if (!arp_pcap) {
+    if (!arp_pcap)
+    {
         exit(1);
     }
 
     // Write the Ethernet frame to the interface.
-    if (pcap_inject(arp_pcap,frame,sizeof(frame))==-1) {
+    if (pcap_inject(arp_pcap,frame,sizeof(frame))==-1)
+    {
         pcap_perror(arp_pcap,0);
         pcap_close(arp_pcap);
         exit(1);
@@ -253,5 +292,6 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
     // Close the PCAP descriptor.
     pcap_close(arp_pcap);
     //printf("MAC: %s\n",arp_ans);
+    insertInARPTable(target_ip_string,arp_ans);
     return arp_ans;
 }
