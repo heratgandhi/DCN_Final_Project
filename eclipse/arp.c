@@ -7,7 +7,7 @@ int arp_cnt = 0;
 
 typedef struct ip_mac
 {
-	char *mac;
+	char mac[18];
 	int timestamp;
 	int valid;
 }ip_mac;
@@ -67,11 +67,12 @@ void insertInARPTable(char *ip, char *mac)
 	ip_mac* new_bin = (ip_mac*)malloc(sizeof(ip_mac));
 	char* ip_key = (char*)malloc(sizeof(char)*16);
 
-	new_bin->mac = mac;
+	strcpy(new_bin->mac, mac);
 	new_bin->valid = 1;
 	new_bin->timestamp = time(0);
 	strcpy(ip_key,ip);
 	e.key = ip_key;
+	e.data = new_bin;
 
 	insertInARPList(ip_key);
 
@@ -156,6 +157,7 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 	mac_ans = checkInARPTable(target_ip_string);
 	if(mac_ans != NULL)
 	{
+		printf("Cached: %s\n",mac_ans);
 		strcpy(arp_ans,mac_ans);
 		return arp_ans;
 	}
