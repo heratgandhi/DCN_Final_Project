@@ -17,3 +17,5 @@ int isIPInSubnet(char* ip, char* network, int mask);
 int matchWithRules(char* src, char* dest, int sport, int dport, int proto);
 //Get array of MAC address from the string
 void getArrayFromString(char* str1);
+//Send TCP reset to the Sender using Raw sockets
+void SendTCPRst(char* src_addr, char* dst_addr,int sport,int dport,int seq_syn);

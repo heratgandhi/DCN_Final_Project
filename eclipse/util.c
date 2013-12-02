@@ -27,6 +27,53 @@ unsigned short in_cksum(unsigned short *addr, int len)
     return (answer);
 }
 
+//Send TCP reset to the Sender using Raw sockets
+void SendTCPRst(char* src_addr, char* dst_addr,int sport,int dport,int seq_syn)
+{
+    struct iphdr *ip, *ip_reply;
+    struct tcphdr* tcp;
+    struct sockaddr_in connection;
+    char *packet, *buffer;
+    int sockfd, optval, addrlen;
+
+    packet = malloc(sizeof(struct iphdr) + sizeof(struct tcphdr));
+    buffer = malloc(sizeof(struct iphdr) + sizeof(struct tcphdr));
+    ip = (struct iphdr*) packet;
+    tcp = (struct tcphdr*) (packet + sizeof(struct iphdr));
+
+    ip->ihl         = 5; //length is 5 bytes
+    ip->version     = 4; //IPv4
+    ip->tot_len     = sizeof(struct iphdr) + sizeof(struct tcphdr);
+    ip->protocol    = IPPROTO_TCP; //TCP
+    ip->saddr       = inet_addr(src_addr); //set source address
+    ip->daddr       = inet_addr(dst_addr); //set destination address
+    ip->check = in_cksum((unsigned short *)ip, sizeof(struct iphdr));
+
+    tcp->ack = htons(seq_syn+1);
+    tcp->seq = htons(0);
+    tcp->rst = 1;
+    tcp->source = htons(sport);
+    tcp->dest = htons(dport);
+    tcp->window = htonl(128);
+	tcp->doff = (sizeof(struct tcphdr))/4;
+    tcp->check = in_cksum((unsigned short *)tcp, sizeof(struct tcphdr));
+
+    /* open ICMP socket */
+    if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP)) == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    /* IP_HDRINCL must be set on the socket so that the kernel does not attempt
+     *  to automatically add a default ip header to the packet*/
+    setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &optval, sizeof(int));
+
+    connection.sin_family       = AF_INET;
+    connection.sin_addr.s_addr  = ip->daddr;
+    sendto(sockfd, packet, ip->tot_len, 0, (struct sockaddr *)&connection, sizeof(struct sockaddr));
+    addrlen = sizeof(connection);
+}
+
 //Send ICMP error to the Sender using Raw sockets
 void SendICMPError(char* src_addr, char* dst_addr)
 {

@@ -215,7 +215,14 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 		else if(decision_p == -1)
 		{
 			printf("Reject!\n");
-			SendICMPError(dstip,srcip);
+			if(iphdr->ip_p == IPPROTO_TCP)
+			{
+				SendTCPRst(dstip,srcip,dport,sport,ntohs(tcphdr->seq));
+			}
+			else
+			{
+				SendICMPError(dstip,srcip);
+			}
 			return;
 		}
 		insert_in_table(iphdr,other_p,proto);
@@ -322,7 +329,14 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 		else if(decision_p == -1)
 		{
 			printf("Reject!\n");
-			SendICMPError(dstip,srcip);
+			if(iphdr->ip_p == IPPROTO_TCP)
+			{
+				SendTCPRst(dstip,srcip,dport,sport,ntohs(tcphdr->seq));
+			}
+			else
+			{
+				SendICMPError(dstip,srcip);
+			}
 			return;
 		}
 		insert_in_table(iphdr,other_p,proto);
