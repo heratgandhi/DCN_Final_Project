@@ -20,6 +20,18 @@ typedef struct arp_list
 
 arp_list *arpKeyListHead = NULL;
 
+//testing
+void printARP()
+{
+	arp_list* t = arpKeyListHead;
+	while(t != NULL)
+	{
+		printf("##%s##",t->ip);
+		t = t->next;
+	}
+	printf("\n");
+}
+
 //Insert ARP binding in the list
 void insertInARPList(char *ip)
 {
@@ -55,8 +67,11 @@ char* checkInARPTable(char *ip)
 	else
 	{
 		val = ep->data;
+		if(val->valid)
 		//printf("Cached: %s\n",val->mac);
-		return val->mac;
+			return val->mac;
+		else
+			return NULL;
 	}
 }
 
@@ -95,6 +110,7 @@ void cleanup_ARP()
 		val = ep->data;
 		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
 		{
+			printf("Deleting: %s ^^^\n",t->ip);
 			val->valid = 0;
 			if(prevN == NULL)
 				arpKeyListHead = t->next;
@@ -102,6 +118,7 @@ void cleanup_ARP()
 				prevN->next = t->next;
 			delN = t;
 			t = t->next;
+			ep->key = "1237";
 			free(delN);
 			free(temp);
 			free(val);
@@ -148,7 +165,8 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 //Main function to get the MAC from IP
 char* get_Mac_ARP(char* target_ip_string,char *if_name)
 {
-
+	//Testing for ARP table
+	printARP();
 	//First check inside the cache of the OS
 	const char filename[] = "/proc/net/arp";
 	char ip_l[16];
@@ -157,11 +175,11 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 	mac_ans = checkInARPTable(target_ip_string);
 	if(mac_ans != NULL)
 	{
-		printf("Cached: %s\n",mac_ans);
+		printf("ARP: Cached: %s\n",mac_ans);
 		strcpy(arp_ans,mac_ans);
 		return arp_ans;
 	}
-
+	printf("ARP: Not cached!\n");
 	FILE *file = fopen(filename, "r");
 	if (file)
 	{

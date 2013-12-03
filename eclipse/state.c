@@ -32,7 +32,7 @@ void travel_list()
 	keyList *t = keyListHead;
 	while(t != NULL)
 	{
-		printf("# %s %s %d %d\n",t->key->src_ip,t->key->dst_ip,t->key->sport,t->key->dport);
+		printf("@@! %s %s %d %d\n",t->key->src_ip,t->key->dst_ip,t->key->sport,t->key->dport);
 		t = t->next;
 	}
 }
@@ -62,7 +62,9 @@ int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 
 int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 {
-	//travel_list();
+	//Testing
+	travel_list();
+
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
 	struct udphdr* udphdr;
@@ -114,7 +116,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 
 	e1.key = struct_to_char(key1);
 	e2.key = struct_to_char(key2);
-	//printf("%s %s\n",e1.key,e2.key);
+	printf("Searching: 1. %s \n 2. %s\n",e1.key,e2.key);
 
 	if((ep1 = hsearch(e1,FIND)) == NULL && (ep2 = hsearch(e2,FIND))== NULL)
 	{

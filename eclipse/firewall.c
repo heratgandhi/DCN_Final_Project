@@ -42,8 +42,6 @@ void func3()
 
 	while(1)
 	{
-		cleanup_ARP();
-
 		t = keyListHead;
 		prevN = NULL;
 
@@ -61,6 +59,8 @@ void func3()
 				else
 					prevN->next = t->next;
 				delN = t;
+				printf("@@@ Deleting: %s\n",ep->key);
+				ep->key = "1237";
 				t = t->next;
 				free(delN);
 				free(temp);
@@ -73,9 +73,20 @@ void func3()
 			}
 		}
 
-		sleep(60);
+		sleep(TIMEOUT);
 	}
 
+	pthread_exit(NULL);
+}
+
+void func4()
+{
+	printf("Thread-4 Started.- ARP cleanup.\n");
+	while(1)
+	{
+		cleanup_ARP();
+		sleep(TIMEOUT_ARP);
+	}
 	pthread_exit(NULL);
 }
 
@@ -104,14 +115,14 @@ int main(int argc, char **argv)
     createList("rules");
     //iterList();
 
-	hcreate(50);
+	hcreate(10000);
 
 	keyListHead = NULL;
 
     //If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
     {
-    	pthread_t threads[3];
+    	pthread_t threads[4];
 		//Open the interface handlers
 		in_handle = pcap_open_live(INT_IN,65536,1,0,errbuf);
 		out_handle = pcap_open_live(INT_OUT,65536,1,0,errbuf);
@@ -120,10 +131,12 @@ int main(int argc, char **argv)
 		pthread_create(threads + 0, NULL, func1, (void *) 0);
 		pthread_create(threads + 1, NULL, func2, (void *) 1);
 		pthread_create(threads + 2, NULL, func3, (void *) 2);
+		pthread_create(threads + 3, NULL, func4, (void *) 3);
 
 		pthread_join(threads[0], NULL);
 		pthread_join(threads[1], NULL);
 		pthread_join(threads[2], NULL);
+		pthread_join(threads[3], NULL);
 
 		pthread_exit(NULL);
 	}

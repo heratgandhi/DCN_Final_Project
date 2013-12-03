@@ -82,13 +82,13 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		val->timestamp = time(0);
 	}
 	e1.key = struct_to_char(key);
-	//printf("*** %s\n",e1.key);
+	printf("Inserting: *** %s\n",e1.key);
 
 	e1.data = (valStruct*)val;
 
 	insert_in_key_list(key);
-
-	hsearch(e1,ENTER);
+	if(hsearch(e1,ENTER) == NULL)
+		printf("######## Hash table full.#########\n");
 }
 
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
@@ -160,7 +160,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     // the fields based on the type of hearder: tcp, udp or icmp.
     packetptr += 4*iphdr->ip_hl;
 
-    printf("1 %s %s\n",srcip,dstip);
+    //printf("1 %s %s\n",srcip,dstip);
 
     if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT))
 	{
@@ -275,7 +275,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     // the fields based on the type of hearder: tcp, udp or icmp.
     packetptr += 4*iphdr->ip_hl;
 
-    printf("2 %s %s\n",srcip,dstip);
+    //printf("2 %s %s\n",srcip,dstip);
 
     if(!isIPInSubnet(dstip,NET_IN,SUB_IN))
 	{
