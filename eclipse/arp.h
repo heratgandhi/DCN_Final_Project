@@ -2,6 +2,7 @@
 #define GLOBAL_H
 #include "globals.h"
 #endif
+#include "hashtable.h"
 
 //ARP packet handler
 void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr);
@@ -9,3 +10,5 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 char* get_Mac_ARP(char* target_ip_string,char *if_name);
 //Clean up Thread
 void cleanup_ARP();
+//Hashtable
+HashTable * arp_table;

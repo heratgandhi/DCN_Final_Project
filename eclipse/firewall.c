@@ -35,7 +35,7 @@ void func3()
 {
 	printf("Thread-3 Started : Cleanup Thread.\n");
 
-	keyList *t = keyListHead,*prevN = NULL,*delN;
+	/*keyList *t = keyListHead,*prevN = NULL,*delN;
 	keyStruct* temp;
 	valStruct* val;
 	ENTRY e1,*ep;
@@ -74,7 +74,7 @@ void func3()
 		}
 
 		sleep(TIMEOUT);
-	}
+	}*/
 
 	pthread_exit(NULL);
 }
@@ -116,6 +116,7 @@ int main(int argc, char **argv)
     //iterList();
 
 	hcreate(10000);
+	arp_table = HashTableCreate(100);
 
 	keyListHead = NULL;
 

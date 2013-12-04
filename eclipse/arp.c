@@ -56,29 +56,30 @@ void insertInARPList(char *ip)
 //Check whether IP address exists in the ARP table
 char* checkInARPTable(char *ip)
 {
-	ENTRY e1,*ep;
 	ip_mac *val;
-	e1.key = ip;
-	ep = hsearch(e1,FIND);
-	if(ep == NULL)
+	val = HashTableGet(arp_table,ip);
+	printf("!@@##Result%d\n",val);
+	if(val == NULL)
 	{
 		return NULL;
 	}
 	else
 	{
-		val = ep->data;
 		if(val->valid)
-		//printf("Cached: %s\n",val->mac);
+		{
+			printf("Cached: %s\n",val->mac);
 			return val->mac;
+		}
 		else
+		{
 			return NULL;
+		}
 	}
 }
 
 //Insert ARP bining in the table
 void insertInARPTable(char *ip, char *mac)
 {
-	ENTRY e;
 	ip_mac* new_bin = (ip_mac*)malloc(sizeof(ip_mac));
 	char* ip_key = (char*)malloc(sizeof(char)*16);
 
@@ -86,12 +87,10 @@ void insertInARPTable(char *ip, char *mac)
 	new_bin->valid = 1;
 	new_bin->timestamp = time(0);
 	strcpy(ip_key,ip);
-	e.key = ip_key;
-	e.data = new_bin;
 
-	insertInARPList(ip_key);
+	insertInARPList(ip);
 
-	hsearch(e,ENTER);
+	HashTablePut(arp_table,ip,new_bin);
 }
 
 //Cleanup old ARP entries
@@ -100,14 +99,11 @@ void cleanup_ARP()
 	arp_list *t = arpKeyListHead,*prevN = NULL,*delN;
 	char* temp;
 	ip_mac* val;
-	ENTRY e1,*ep;
 
 	while(t != NULL)
 	{
 		temp = t->ip;
-		e1.key = temp;
-		ep = hsearch(e1,FIND);
-		val = ep->data;
+		val = HashTableGet(arp_table,temp);
 		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
 		{
 			printf("Deleting: %s ^^^\n",t->ip);
@@ -118,10 +114,12 @@ void cleanup_ARP()
 				prevN->next = t->next;
 			delN = t;
 			t = t->next;
-			ep->key = "1237";
+			printf("%s------\n",HashTableGet(arp_table,temp));
+			HashTableRemove(arp_table,temp);
+			printf("%s------\n",HashTableGet(arp_table,temp));
 			free(delN);
-			free(temp);
-			free(val);
+			//free(temp);
+			//free(val);
 		}
 		else
 		{
