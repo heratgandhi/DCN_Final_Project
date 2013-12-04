@@ -159,6 +159,7 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 		return;
     //Get mac address
     sprintf(arp_ans,"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", eth->h_source[0] , eth->h_source[1] , eth->h_source[2] , eth->h_source[3] , eth->h_source[4] , eth->h_source[5] );
+    //printf("Using custom code: %s\n",arp_ans);
     pcap_breakloop(arp_pcap);
 }
 

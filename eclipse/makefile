@@ -5,9 +5,10 @@ all:
 	gcc -c arp.c
 	gcc -c firewall.c
 	gcc -c state.c
-	gcc -o firewall firewall.o rules.o util.o pcap.o arp.o state.o -lpcap -lpthread
+	gcc -c hashtable/hashtable.c
+	gcc -c hashtable/hashtable_itr.c
+	gcc -o firewall firewall.o rules.o util.o pcap.o arp.o state.o hashtable.o hashtable_itr.o -lpcap -lpthread
 
 clean:
 	rm *.o
 	rm firewall
-    
