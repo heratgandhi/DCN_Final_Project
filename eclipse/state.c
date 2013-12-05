@@ -39,24 +39,24 @@ void travel_list()
 
 int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 {
-	keyList *t = keyListHead;
-	keyStruct* temp;
-	valStruct* val;
-	ENTRY e1,*ep;
-	while(t != NULL)
-	{
-		temp = t->key;
-		if(((strcmp(temp->src_ip,k1->src_ip) == 0) && (strcmp(temp->dst_ip,k1->dst_ip) == 0)) ||
-				((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
-		{
-			e1.key = struct_to_char(temp);
-			ep = hsearch(e1,FIND);
-			val = ep->data;
-			if(val->valid && (val->protocol == IPPROTO_TCP || val->protocol == IPPROTO_UDP))
-				return 1;
-		}
-		t = t->next;
-	}
+//	keyList *t = keyListHead;
+//	keyStruct* temp;
+//	valStruct* val;
+//	char *tmp = (char*)malloc(sizeof(char)*50);
+//
+//	while(t != NULL)
+//	{
+//		temp = t->key;
+//		if(((strcmp(temp->src_ip,k1->src_ip) == 0) && (strcmp(temp->dst_ip,k1->dst_ip) == 0)) ||
+//				((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
+//		{
+//			strcpy(tmp, struct_to_char(temp));
+//			val = HashTableGet(state_table,tmp);
+//			if(val->valid && (val->protocol == IPPROTO_TCP || val->protocol == IPPROTO_UDP))
+//				return 1;
+//		}
+//		t = t->next;
+//	}
 	return 0;
 }
 
@@ -68,13 +68,13 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
 	struct udphdr* udphdr;
+	State_table *entry1, *entry2;
 
-	ENTRY e1,e2,*ep1,*ep2;
-	ep1 = NULL;
-	ep2 = NULL;
+	char *tkey1 = (char*)malloc(sizeof(char)*50);
+	char *tkey2 = (char*)malloc(sizeof(char)*50);
 
 	keyStruct *key1,*key2;
-	valStruct* val;
+	valStruct* val1, *val2, *val;
 	int ticmp;
 
 	key1 = (keyStruct*) malloc(sizeof(keyStruct));
@@ -114,11 +114,15 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		//printf("%d ^^^ %s %s %d %d\n",proc,key2->src_ip,key2->dst_ip,key2->sport,key2->dport);
 	}
 
-	e1.key = struct_to_char(key1);
-	e2.key = struct_to_char(key2);
-	printf("Searching: 1. %s \n 2. %s\n",e1.key,e2.key);
+	strcpy(tkey1,struct_to_char(key1));
+	strcpy(tkey2,struct_to_char(key2));
+	printf("Searching: 1. %s \n 2. %s\n",tkey1,tkey2);
 
-	if((ep1 = hsearch(e1,FIND)) == NULL && (ep2 = hsearch(e2,FIND))== NULL)
+	HASH_FIND_STR(state_tbl,tkey1,entry1);
+	HASH_FIND_STR(state_tbl,tkey2,entry2);
+
+	if((entry1 == NULL)
+			&& (entry2== NULL))
 	{
 		printf("%d-->Not found in the session table.\n",proc);
 
@@ -161,13 +165,13 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	{
 		printf("%d-->Found in the session table.\n",proc);
 		//Update the entry inside the table
-		if(ep1 != NULL)
+		if(entry1 != NULL)
 		{
-			val = ep1->data;
+			val = entry1->value;
 		}
-		else if(ep2 != NULL)
+		else if(entry2 != NULL)
 		{
-			val = ep2->data;
+			val = entry2->value;
 		}
 
 		if(val->valid == 0)

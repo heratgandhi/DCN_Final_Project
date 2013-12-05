@@ -2,6 +2,7 @@
 #define GLOBAL_H
 #include "globals.h"
 #endif
+#include "uthash.h"
 
 typedef struct keyStruct
 {
@@ -21,6 +22,12 @@ typedef struct valStruct
 	int timestamp;
 }valStruct;
 
+typedef struct State_table{
+    char key[50];
+    valStruct* value;
+    UT_hash_handle hh;
+}State_table;
+
 typedef struct keyList
 {
 	keyStruct* key;
@@ -31,3 +38,4 @@ int updateState(struct ip* iphdr, void * other_p, int protocol,int proc);
 char* struct_to_char(keyStruct* key);
 
 keyList* keyListHead;
+State_table* state_tbl;

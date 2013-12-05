@@ -38,7 +38,7 @@ void func3()
 	/*keyList *t = keyListHead,*prevN = NULL,*delN;
 	keyStruct* temp;
 	valStruct* val;
-	ENTRY e1,*ep;
+	char *tmp;
 
 	while(1)
 	{
@@ -48,9 +48,9 @@ void func3()
 		while(t != NULL)
 		{
 			temp = t->key;
-			e1.key = struct_to_char(temp);
-			ep = hsearch(e1,FIND);
-			val = ep->data;
+			tmp = struct_to_char(temp);
+			val = HashTableGet(state_table,tmp);
+
 			if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
 			{
 				val->valid = 0;
@@ -59,12 +59,12 @@ void func3()
 				else
 					prevN->next = t->next;
 				delN = t;
-				printf("@@@ Deleting: %s\n",ep->key);
-				ep->key = "1237";
+				printf("@@@ Deleting: %s\n",tmp);
+				HashTableRemove(state_table,tmp);
 				t = t->next;
 				free(delN);
-				free(temp);
-				free(val);
+				//free(temp);
+				//free(val);
 			}
 			else
 			{
@@ -82,11 +82,11 @@ void func3()
 void func4()
 {
 	printf("Thread-4 Started.- ARP cleanup.\n");
-	while(1)
-	{
-		cleanup_ARP();
-		sleep(TIMEOUT_ARP);
-	}
+//	while(1)
+//	{
+//		cleanup_ARP();
+//		sleep(TIMEOUT_ARP);
+//	}
 	pthread_exit(NULL);
 }
 
@@ -115,8 +115,8 @@ int main(int argc, char **argv)
     createList("rules");
     //iterList();
 
-	hcreate(10000);
-	arp_table = HashTableCreate(100);
+	state_tbl = NULL;
+	arp_tbl = NULL;
 
 	keyListHead = NULL;
 

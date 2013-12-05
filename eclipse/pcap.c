@@ -25,16 +25,16 @@ void insert_in_key_list(keyStruct* node)
 
 void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 {
-	ENTRY e1;
-
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
 	struct udphdr* udphdr;
+	State_table* entry = (State_table*)malloc(sizeof(State_table));
 
 	keyStruct* key = (keyStruct*) malloc(sizeof(keyStruct));
 	valStruct* val = (valStruct*) malloc(sizeof(valStruct));;
 
 	int ticmp;
+	char* tmp = (char*) malloc(sizeof(char)*50);
 
 	strcpy(key->src_ip, inet_ntoa(iphdr->ip_src));
 	strcpy(key->dst_ip, inet_ntoa(iphdr->ip_dst));
@@ -81,14 +81,11 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		val->sequence = key->dport;
 		val->timestamp = time(0);
 	}
-	e1.key = struct_to_char(key);
-	printf("Inserting: *** %s\n",e1.key);
-
-	e1.data = (valStruct*)val;
+	strcpy(entry->key,struct_to_char(key));
+	entry->value = val;
 
 	insert_in_key_list(key);
-	if(hsearch(e1,ENTER) == NULL)
-		printf("######## Hash table full.#########\n");
+	HASH_ADD_STR(state_tbl, key, entry);
 }
 
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)

@@ -1,16 +1,8 @@
 #include "arp.h"
 #include "pcap.h"
 #include <stdlib.h>
-#include <search.h>
 
 int arp_cnt = 0;
-
-typedef struct ip_mac
-{
-	char mac[18];
-	int timestamp;
-	int valid;
-}ip_mac;
 
 typedef struct arp_list
 {
@@ -56,15 +48,17 @@ void insertInARPList(char *ip)
 //Check whether IP address exists in the ARP table
 char* checkInARPTable(char *ip)
 {
+	ARP_table *entry;
 	ip_mac *val;
-	val = HashTableGet(arp_table,ip);
-	printf("!@@##Result%d\n",val);
-	if(val == NULL)
+	HASH_FIND_STR(arp_tbl,ip,entry);
+
+	if(entry == NULL)
 	{
 		return NULL;
 	}
 	else
 	{
+		val = entry->value;
 		if(val->valid)
 		{
 			printf("Cached: %s\n",val->mac);
@@ -80,30 +74,33 @@ char* checkInARPTable(char *ip)
 //Insert ARP bining in the table
 void insertInARPTable(char *ip, char *mac)
 {
+	ARP_table *entry = (ARP_table*) malloc(sizeof(ARP_table));
 	ip_mac* new_bin = (ip_mac*)malloc(sizeof(ip_mac));
-	char* ip_key = (char*)malloc(sizeof(char)*16);
 
 	strcpy(new_bin->mac, mac);
 	new_bin->valid = 1;
 	new_bin->timestamp = time(0);
-	strcpy(ip_key,ip);
+	strcpy(entry->key,ip);
+	entry->value = new_bin;
 
 	insertInARPList(ip);
 
-	HashTablePut(arp_table,ip,new_bin);
+	HASH_ADD_STR(arp_tbl, key, entry);
 }
 
 //Cleanup old ARP entries
 void cleanup_ARP()
 {
 	arp_list *t = arpKeyListHead,*prevN = NULL,*delN;
-	char* temp;
-	ip_mac* val;
+	char *temp;
+	ip_mac *val;
+	ARP_table *entry;
 
 	while(t != NULL)
 	{
 		temp = t->ip;
-		val = HashTableGet(arp_table,temp);
+		HASH_FIND_STR(arp_tbl,temp,entry);
+		val = entry->value;
 		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
 		{
 			printf("Deleting: %s ^^^\n",t->ip);
@@ -114,9 +111,9 @@ void cleanup_ARP()
 				prevN->next = t->next;
 			delN = t;
 			t = t->next;
-			printf("%s------\n",HashTableGet(arp_table,temp));
-			HashTableRemove(arp_table,temp);
-			printf("%s------\n",HashTableGet(arp_table,temp));
+			//printf("%s------\n",HashTableGet(arp_table,temp));
+			HASH_DEL(arp_tbl, entry);
+			//printf("%s------\n",HashTableGet(arp_table,temp));
 			free(delN);
 			//free(temp);
 			//free(val);
