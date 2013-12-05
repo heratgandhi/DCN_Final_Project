@@ -168,8 +168,13 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	strcpy(tkey2,struct_to_char(key2));
 	printf("Searching: 1. %s \n 2. %s\n",tkey1,tkey2);
 
+	if (pthread_rwlock_rdlock(&state_lock) != 0)
+	{
+		printf("Can't acquire read lock on state lock.\n");
+	}
 	HASH_FIND_STR(state_tbl,tkey1,entry1);
 	HASH_FIND_STR(state_tbl,tkey2,entry2);
+	pthread_rwlock_unlock(&state_lock);
 
 	if((entry1 == NULL) && (entry2== NULL))
 	{
@@ -275,7 +280,12 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		}
 		strcpy(new_entry->key, entry->key);
 		new_entry->value = val;
+		if (pthread_rwlock_wrlock(&state_lock) != 0)
+		{
+			printf("Can't acquire write lock on state lock.\n");
+		}
 		HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
+		pthread_rwlock_unlock(&state_lock);
 		printf("Replaced!\n");
 		return 1;
 	}

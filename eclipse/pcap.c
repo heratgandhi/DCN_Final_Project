@@ -64,7 +64,12 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 	strcpy(entry->key,struct_to_char(key));
 	entry->value = val;
 
+	if (pthread_rwlock_wrlock(&state_lock) != 0)
+	{
+		printf("Can't acquire write lock on state lock.\n");
+	}
 	HASH_ADD_STR(state_tbl, key, entry);
+	pthread_rwlock_unlock(&state_lock);
 }
 
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)

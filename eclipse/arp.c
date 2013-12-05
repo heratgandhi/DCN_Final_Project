@@ -7,12 +7,17 @@ int arp_cnt = 0;
 //testing
 void printARP()
 {
+	if (pthread_rwlock_rdlock(&arp_lock) != 0)
+	{
+		printf("Can't acquire read ARP lock.\n");
+	}
 	ARP_table *i;
 	for(i=arp_tbl; i != NULL; i=i->hh.next)
 	{
 		printf("##%s##",i->key);
 	}
 	printf("\n");
+	pthread_rwlock_unlock(&arp_lock);
 }
 
 //Check whether IP address exists in the ARP table
@@ -20,7 +25,12 @@ char* checkInARPTable(char *ip)
 {
 	ARP_table *entry;
 	ip_mac *val;
+	if (pthread_rwlock_rdlock(&arp_lock) != 0)
+	{
+		printf("Can't acquire read ARP lock.\n");
+	}
 	HASH_FIND_STR(arp_tbl,ip,entry);
+	pthread_rwlock_unlock(&arp_lock);
 
 	if(entry == NULL)
 	{
@@ -53,7 +63,12 @@ void insertInARPTable(char *ip, char *mac)
 	strcpy(entry->key,ip);
 	entry->value = new_bin;
 
+	if (pthread_rwlock_wrlock(&arp_lock) != 0)
+	{
+		printf("Can't acquire write ARP lock.\n");
+	}
 	HASH_ADD_STR(arp_tbl, key, entry);
+	pthread_rwlock_unlock(&arp_lock);
 }
 
 //Cleanup old ARP entries

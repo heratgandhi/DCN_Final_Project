@@ -34,3 +34,4 @@ keyStruct* char_to_struct(char* key);
 void cleanup_State();
 
 State_table* state_tbl;
+pthread_rwlock_t state_lock;

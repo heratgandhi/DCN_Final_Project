@@ -36,7 +36,15 @@ void func3()
 	printf("Thread-3 Started : Cleanup Thread.\n");
 	while(1)
 	{
+		if (pthread_rwlock_wrlock(&state_lock) != 0)
+		{
+			printf("Can't acquire write lock on state lock.\n");
+		}
+
 		cleanup_State();
+
+		pthread_rwlock_unlock(&state_lock);
+
 		sleep(TIMEOUT);
 	}
 	pthread_exit(NULL);
@@ -47,7 +55,15 @@ void func4()
 	printf("Thread-4 Started.- ARP cleanup.\n");
 	while(1)
 	{
+		if (pthread_rwlock_wrlock(&arp_lock) != 0)
+		{
+			printf("Can't acquire write lock on arp lock.\n");
+		}
+
 		cleanup_ARP();
+
+		pthread_rwlock_unlock(&arp_lock);
+
 		sleep(TIMEOUT_ARP);
 	}
 	pthread_exit(NULL);
@@ -80,6 +96,15 @@ int main(int argc, char **argv)
 
 	state_tbl = NULL;
 	arp_tbl = NULL;
+
+	if (pthread_rwlock_init(&arp_lock,NULL) != 0)
+	{
+		printf("ARP lock init failed.\n");
+	}
+	if (pthread_rwlock_init(&state_lock,NULL) != 0)
+	{
+		printf("State lock init failed.\n");
+	}
 
 	//If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
