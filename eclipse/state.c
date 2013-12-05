@@ -30,33 +30,43 @@ char* struct_to_char(keyStruct* key)
 void travel_list()
 {
 	keyList *t = keyListHead;
+	valStruct* val;
+	char *tmp;
+	State_table *entry;
 	while(t != NULL)
 	{
 		printf("@@! %s %s %d %d\n",t->key->src_ip,t->key->dst_ip,t->key->sport,t->key->dport);
+		tmp = struct_to_char(t->key);
+		HASH_FIND_STR(state_tbl,tmp,entry);
+		val = entry->value;
+		printf("State:%d Proto:%d Sequence:%d valid:%d timestamp:%d\n",
+				val->state,val->protocol,val->sequence,val->valid,val->timestamp);
 		t = t->next;
 	}
 }
 
 int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 {
-//	keyList *t = keyListHead;
-//	keyStruct* temp;
-//	valStruct* val;
-//	char *tmp = (char*)malloc(sizeof(char)*50);
-//
-//	while(t != NULL)
-//	{
-//		temp = t->key;
-//		if(((strcmp(temp->src_ip,k1->src_ip) == 0) && (strcmp(temp->dst_ip,k1->dst_ip) == 0)) ||
-//				((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
-//		{
-//			strcpy(tmp, struct_to_char(temp));
-//			val = HashTableGet(state_table,tmp);
-//			if(val->valid && (val->protocol == IPPROTO_TCP || val->protocol == IPPROTO_UDP))
-//				return 1;
-//		}
-//		t = t->next;
-//	}
+	keyList *t = keyListHead;
+	keyStruct* temp;
+	valStruct* val;
+	State_table *entry;
+	char *tmp = (char*)malloc(sizeof(char)*50);
+
+	while(t != NULL)
+	{
+		temp = t->key;
+		if(((strcmp(temp->src_ip,k1->src_ip) == 0) && (strcmp(temp->dst_ip,k1->dst_ip) == 0)) ||
+				((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
+		{
+			strcpy(tmp, struct_to_char(temp));
+			HASH_FIND_STR(state_tbl,tmp,entry);
+			val = entry->value;
+			if(val->valid && (val->protocol == IPPROTO_TCP || val->protocol == IPPROTO_UDP))
+				return 1;
+		}
+		t = t->next;
+	}
 	return 0;
 }
 

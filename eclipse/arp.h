@@ -4,7 +4,7 @@
 #endif
 #include "uthash.h"
 
-//Hashtable
+//ARP table
 typedef struct ip_mac
 {
 	char mac[18];
@@ -18,7 +18,7 @@ typedef struct ARP_table{
     UT_hash_handle hh;
 }ARP_table;
 
-ARP_table * arp_tbl;
+ARP_table *arp_tbl;
 
 //ARP packet handler
 void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr);
