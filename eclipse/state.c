@@ -133,6 +133,8 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	strcpy(key2->dst_ip, inet_ntoa(iphdr->ip_src));
 	strcpy(key2->src_ip, inet_ntoa(iphdr->ip_dst));
 
+	printf("Time: %d\n",time(0));
+
 	if(protocol == IPPROTO_TCP)
 	{
 		tcphdr = (struct tcphdr*) other_p;
@@ -274,6 +276,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		strcpy(new_entry->key, entry->key);
 		new_entry->value = val;
 		HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
+		printf("Replaced!\n");
 		return 1;
 	}
 	return 0;
