@@ -3,26 +3,6 @@
 #include "util.h"
 #include "state.h"
 
-void insert_in_key_list(keyStruct* node)
-{
-	keyList* new_node = (keyList*)malloc(sizeof(keyList));
-	new_node->key = node;
-	new_node->next = NULL;
-	if(keyListHead == NULL)
-	{
-		keyListHead = new_node;
-	}
-	else
-	{
-		keyList* t = keyListHead;
-		while(t->next != NULL)
-		{
-			t = t->next;
-		}
-		t->next = new_node;
-	}
-}
-
 void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 {
 	struct icmphdr* icmphdr;
@@ -84,7 +64,6 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 	strcpy(entry->key,struct_to_char(key));
 	entry->value = val;
 
-	insert_in_key_list(key);
 	HASH_ADD_STR(state_tbl, key, entry);
 }
 

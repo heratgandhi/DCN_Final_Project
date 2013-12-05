@@ -34,50 +34,11 @@ void func2()
 void func3()
 {
 	printf("Thread-3 Started : Cleanup Thread.\n");
-
-	keyList *t = keyListHead,*prevN = NULL,*delN;
-	keyStruct* temp;
-	valStruct* val;
-	State_table *entry;
-	char *tmp;
-
 	while(1)
 	{
-		t = keyListHead;
-		prevN = NULL;
-
-		while(t != NULL)
-		{
-			temp = t->key;
-			tmp = struct_to_char(temp);
-			HASH_FIND_STR(state_tbl,tmp,entry);
-			val = entry->value;
-
-			if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
-			{
-				val->valid = 0;
-				if(prevN == NULL)
-					keyListHead = t->next;
-				else
-					prevN->next = t->next;
-				delN = t;
-				printf("@@@ Deleting: %s\n",tmp);
-				HASH_DEL(state_tbl, entry);
-				t = t->next;
-				free(delN);
-				//free(temp);
-				//free(val);
-			}
-			else
-			{
-				prevN = t;
-				t = t->next;
-			}
-		}
-
+		cleanup_State();
 		sleep(TIMEOUT);
 	}
-
 	pthread_exit(NULL);
 }
 
@@ -120,9 +81,7 @@ int main(int argc, char **argv)
 	state_tbl = NULL;
 	arp_tbl = NULL;
 
-	keyListHead = NULL;
-
-    //If mode = 1 then use the interfaces to capture packets
+	//If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
     {
     	pthread_t threads[4];

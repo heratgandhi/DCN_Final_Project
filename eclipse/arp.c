@@ -4,45 +4,15 @@
 
 int arp_cnt = 0;
 
-typedef struct arp_list
-{
-	char *ip;
-	struct arp_list* next;
-}arp_list;
-
-arp_list *arpKeyListHead = NULL;
-
 //testing
 void printARP()
 {
-	arp_list* t = arpKeyListHead;
-	while(t != NULL)
+	ARP_table *i;
+	for(i=arp_tbl; i != NULL; i=i->hh.next)
 	{
-		printf("##%s##",t->ip);
-		t = t->next;
+		printf("##%s##",i->key);
 	}
 	printf("\n");
-}
-
-//Insert ARP binding in the list
-void insertInARPList(char *ip)
-{
-	arp_list* new_node = (arp_list*)malloc(sizeof(arp_list));
-	new_node->ip = ip;
-	new_node->next = NULL;
-	if(arpKeyListHead == NULL)
-	{
-		arpKeyListHead = new_node;
-	}
-	else
-	{
-		arp_list* t = arpKeyListHead;
-		while(t->next != NULL)
-		{
-			t = t->next;
-		}
-		t->next = new_node;
-	}
 }
 
 //Check whether IP address exists in the ARP table
@@ -83,45 +53,23 @@ void insertInARPTable(char *ip, char *mac)
 	strcpy(entry->key,ip);
 	entry->value = new_bin;
 
-	insertInARPList(ip);
-
 	HASH_ADD_STR(arp_tbl, key, entry);
 }
 
 //Cleanup old ARP entries
 void cleanup_ARP()
 {
-	arp_list *t = arpKeyListHead,*prevN = NULL,*delN;
-	char *temp;
 	ip_mac *val;
-	ARP_table *entry;
-
-	while(t != NULL)
+	ARP_table *entry,*tmp;
+	HASH_ITER(hh, arp_tbl, entry, tmp)
 	{
-		temp = t->ip;
-		HASH_FIND_STR(arp_tbl,temp,entry);
-		val = entry->value;
-		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
+	    val = entry->value;
+	    if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
 		{
-			printf("Deleting: %s ^^^\n",t->ip);
+			printf("Deleting: %s ^^^\n",entry->key);
 			val->valid = 0;
-			if(prevN == NULL)
-				arpKeyListHead = t->next;
-			else
-				prevN->next = t->next;
-			delN = t;
-			t = t->next;
-			//printf("%s------\n",HashTableGet(arp_table,temp));
 			HASH_DEL(arp_tbl, entry);
-			//printf("%s------\n",HashTableGet(arp_table,temp));
-			free(delN);
-			//free(temp);
-			//free(val);
-		}
-		else
-		{
-			prevN = t;
-			t = t->next;
+			free(entry);
 		}
 	}
 }

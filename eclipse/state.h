@@ -28,14 +28,9 @@ typedef struct State_table{
     UT_hash_handle hh;
 }State_table;
 
-typedef struct keyList
-{
-	keyStruct* key;
-	struct keyList* next;
-}keyList;
-
 int updateState(struct ip* iphdr, void * other_p, int protocol,int proc);
 char* struct_to_char(keyStruct* key);
+keyStruct* char_to_struct(char* key);
+void cleanup_State();
 
-keyList* keyListHead;
 State_table* state_tbl;

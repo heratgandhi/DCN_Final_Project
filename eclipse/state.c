@@ -1,5 +1,24 @@
 #include "state.h"
 
+void cleanup_State()
+{
+	valStruct* val;
+	State_table *entry,*tmp;
+
+	HASH_ITER(hh, state_tbl, entry, tmp)
+	{
+		val = entry->value;
+
+		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
+		{
+			val->valid = 0;
+			printf("@@@ Deleting: %s\n",entry->key);
+			HASH_DEL(state_tbl, entry);
+			free(entry);
+		}
+	}
+}
+
 char* itoa(int val, int base)
 {
 	static char buf[32] = {0};
@@ -27,45 +46,63 @@ char* struct_to_char(keyStruct* key)
 	return ptr;
 }
 
+keyStruct* char_to_struct(char* key)
+{
+	char* token = strtok(key, ",");
+	keyStruct *key_s = (keyStruct*) malloc(sizeof(keyStruct));
+	int i = 0;
+	while (token)
+	{
+		switch(i)
+		{
+			case 0:
+				strcpy(key_s->src_ip,token);
+			break;
+			case 1:
+				strcpy(key_s->dst_ip,token);
+			break;
+			case 2:
+				key_s->sport = atoi(token);
+			break;
+			case 3:
+				key_s->dport = atoi(token);
+			break;
+		}
+		i++;
+		token = strtok(0, ",");
+	}
+	return key_s;
+}
+
+
 void travel_list()
 {
-	keyList *t = keyListHead;
 	valStruct* val;
-	char *tmp;
-	State_table *entry;
-	while(t != NULL)
+	State_table *i;
+	for(i=state_tbl;i != NULL; i=i->hh.next)
 	{
-		printf("@@! %s %s %d %d\n",t->key->src_ip,t->key->dst_ip,t->key->sport,t->key->dport);
-		tmp = struct_to_char(t->key);
-		HASH_FIND_STR(state_tbl,tmp,entry);
-		val = entry->value;
+		printf("%s: ",i->key);
+		val = i->value;
 		printf("State:%d Proto:%d Sequence:%d valid:%d timestamp:%d\n",
 				val->state,val->protocol,val->sequence,val->valid,val->timestamp);
-		t = t->next;
 	}
 }
 
 int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 {
-	keyList *t = keyListHead;
 	keyStruct* temp;
 	valStruct* val;
-	State_table *entry;
-	char *tmp = (char*)malloc(sizeof(char)*50);
-
-	while(t != NULL)
+	State_table *i;
+	for(i=state_tbl;i != NULL; i=i->hh.next)
 	{
-		temp = t->key;
+		val = i->value;
+		temp = char_to_struct(i->key);
 		if(((strcmp(temp->src_ip,k1->src_ip) == 0) && (strcmp(temp->dst_ip,k1->dst_ip) == 0)) ||
-				((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
+						((strcmp(temp->src_ip,k2->src_ip) == 0) && (strcmp(temp->dst_ip,k2->dst_ip) == 0)))
 		{
-			strcpy(tmp, struct_to_char(temp));
-			HASH_FIND_STR(state_tbl,tmp,entry);
-			val = entry->value;
 			if(val->valid && (val->protocol == IPPROTO_TCP || val->protocol == IPPROTO_UDP))
 				return 1;
 		}
-		t = t->next;
 	}
 	return 0;
 }
@@ -78,7 +115,8 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
 	struct udphdr* udphdr;
-	State_table *entry1, *entry2;
+	State_table *entry1, *entry2, *entry;
+	State_table *new_entry = (State_table*)malloc(sizeof(State_table));
 
 	char *tkey1 = (char*)malloc(sizeof(char)*50);
 	char *tkey2 = (char*)malloc(sizeof(char)*50);
@@ -131,8 +169,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	HASH_FIND_STR(state_tbl,tkey1,entry1);
 	HASH_FIND_STR(state_tbl,tkey2,entry2);
 
-	if((entry1 == NULL)
-			&& (entry2== NULL))
+	if((entry1 == NULL) && (entry2== NULL))
 	{
 		printf("%d-->Not found in the session table.\n",proc);
 
@@ -154,7 +191,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 			else
 			{
 				//Check for special ICMP message here that is for TCP or UDP session
-				//else return -1
+				//else return -1/0
 				return handle_icmp_error(key1,key2);
 			}
 		}
@@ -178,10 +215,12 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 		if(entry1 != NULL)
 		{
 			val = entry1->value;
+			entry = entry1;
 		}
 		else if(entry2 != NULL)
 		{
 			val = entry2->value;
+			entry = entry2;
 		}
 
 		if(val->valid == 0)
@@ -232,6 +271,9 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 					return -1;
 			}
 		}
+		strcpy(new_entry->key, entry->key);
+		new_entry->value = val;
+		HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
 		return 1;
 	}
 	return 0;
