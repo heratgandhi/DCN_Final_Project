@@ -35,9 +35,10 @@ void func3()
 {
 	printf("Thread-3 Started : Cleanup Thread.\n");
 
-	/*keyList *t = keyListHead,*prevN = NULL,*delN;
+	keyList *t = keyListHead,*prevN = NULL,*delN;
 	keyStruct* temp;
 	valStruct* val;
+	State_table *entry;
 	char *tmp;
 
 	while(1)
@@ -49,7 +50,8 @@ void func3()
 		{
 			temp = t->key;
 			tmp = struct_to_char(temp);
-			val = HashTableGet(state_table,tmp);
+			HASH_FIND_STR(state_tbl,tmp,entry);
+			val = entry->value;
 
 			if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
 			{
@@ -60,7 +62,7 @@ void func3()
 					prevN->next = t->next;
 				delN = t;
 				printf("@@@ Deleting: %s\n",tmp);
-				HashTableRemove(state_table,tmp);
+				HASH_DEL(state_tbl, entry);
 				t = t->next;
 				free(delN);
 				//free(temp);
@@ -74,7 +76,7 @@ void func3()
 		}
 
 		sleep(TIMEOUT);
-	}*/
+	}
 
 	pthread_exit(NULL);
 }
@@ -82,11 +84,11 @@ void func3()
 void func4()
 {
 	printf("Thread-4 Started.- ARP cleanup.\n");
-//	while(1)
-//	{
-//		cleanup_ARP();
-//		sleep(TIMEOUT_ARP);
-//	}
+	while(1)
+	{
+		cleanup_ARP();
+		sleep(TIMEOUT_ARP);
+	}
 	pthread_exit(NULL);
 }
 
