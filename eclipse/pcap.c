@@ -297,8 +297,10 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
 	if(decision_t == -1)
 	{
+		printf("Drop!\n");
 		return;
 	}
+
 	if(decision_t == 0)
 	{
 		decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
@@ -342,15 +344,18 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
 void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
-
-    struct ip* iphdr;
+	struct ip* iphdr;
     struct icmphdr* icmphdr;
     struct tcphdr* tcphdr;
     struct udphdr* udphdr;
     char iphdrInfo[256], srcip[256], dstip[256];
     unsigned short id, seq;
     int i;
-    int sport,dport,proto;
+    int decision_p;
+    int decision_t;
+    int proto;
+    void *other_p;
+    int sport, dport;
 
     u_char *backup = packetptr;
     struct pcap_pkthdr* backup2 = packethdr;
@@ -362,7 +367,6 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     iphdr = (struct ip*)packetptr;
     strcpy(srcip, inet_ntoa(iphdr->ip_src));
     strcpy(dstip, inet_ntoa(iphdr->ip_dst));
-
     sprintf(iphdrInfo, "ID:%d TOS:0x%x, TTL:%d IpLen:%d DgLen:%d",
             ntohs(iphdr->ip_id), iphdr->ip_tos, iphdr->ip_ttl,
             4*iphdr->ip_hl, ntohs(iphdr->ip_len));
@@ -375,31 +379,53 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     {
 		case IPPROTO_TCP:
 			tcphdr = (struct tcphdr*)packetptr;
+			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,1);
+			other_p = tcphdr;
+			proto = IPPROTO_TCP;
 			sport = ntohs(tcphdr->source);
 			dport = ntohs(tcphdr->dest);
-			proto = IPPROTO_TCP;
 			break;
 
 		case IPPROTO_UDP:
 			udphdr = (struct udphdr*)packetptr;
+			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,1);
+			other_p = udphdr;
+			proto = IPPROTO_UDP;
 			sport = ntohs(udphdr->source);
 			dport = ntohs(udphdr->dest);
-			proto = IPPROTO_UDP;
 			break;
 
 		case IPPROTO_ICMP:
 			icmphdr = (struct icmphdr*)packetptr;
 			memcpy(&id, (u_char*)icmphdr+4, 2);
 			memcpy(&seq, (u_char*)icmphdr+6, 2);
-			proto = IPPROTO_ICMP;
+			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1);
+			other_p = icmphdr;
 			sport = -1;
 			dport = -1;
+			proto = IPPROTO_ICMP;
 			break;
     }
-
-	if(matchWithRules(srcip,dstip,sport,dport,proto))
-	{
-		//write the packet to the pcap file
-		pcap_dump(user, backup2, backup);
-	}
+    if(decision_t == -1)
+    {
+    	printf("Drop!\n");
+    	return;
+    }
+    if(decision_t == 0)
+    {
+    	decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
+		if(decision_p == 0)
+		{
+			printf("Drop!\n");
+			return;
+		}
+		else if(decision_p == -1)
+		{
+			printf("Reject!\n");
+			return;
+		}
+		insert_in_table(iphdr,other_p,proto);
+    }
+    pcap_dump(user, backup2, backup);
 }
+
