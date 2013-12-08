@@ -123,7 +123,7 @@ void createList(char *file)
 						strcpy(node->src_port_op,ptr);
 						mode = 1;
 					}
-					else if(strlen(ptr) < 7)
+					else if(strlen(ptr) < 7 && strcmp(ptr,"any") != 0)
 					{
 						node->src_port2 = atoi(ptr);
 						mode = 2;
@@ -154,7 +154,7 @@ void createList(char *file)
 				case 8:
 					if(mode == 1)
 					{
-						if(strlen(ptr) < 7)
+						if(strlen(ptr) < 7 && strcmp(ptr,"any") != 0)
 						{
 							node->src_port2 = atoi(ptr);
 							mode = 1;
@@ -197,7 +197,7 @@ void createList(char *file)
 					}
 					else if(mode == 3)
 					{
-						if(strlen(ptr) < 7)
+						if(strlen(ptr) < 7 && strcmp(ptr,"any") != 0)
 						{
 							strcpy(node->dst_port_op,ptr);
 							mode = 3;
@@ -227,7 +227,7 @@ void createList(char *file)
 					}
 					else if(mode == 2)
 					{
-						if(strlen(ptr) < 7)
+						if(strlen(ptr) < 7 && strcmp(ptr,"any") != 0)
 						{
 							strcpy(node->dst_port_op,ptr);
 							mode = 2;
@@ -262,7 +262,7 @@ void createList(char *file)
 				case 11:
 					if(mode == 1)
 					{
-						if(strlen(ptr) < 7)
+						if(strlen(ptr) < 7 && strcmp(ptr,"any") != 0)
 						{
 							strcpy(node->dst_port_op,ptr);
 							mode = 1;
