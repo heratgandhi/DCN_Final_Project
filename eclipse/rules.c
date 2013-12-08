@@ -22,6 +22,17 @@ void initialize(rulenode *ptr)
 	ptr->next = NULL;
 }
 
+void cleanList()
+{
+	rulenode *ptr = head,*next;
+	while(ptr != NULL)
+	{
+		next = ptr->next;
+		free(ptr);
+		ptr = next;
+	}
+}
+
 void createList(char *file)
 {
 	FILE* fp_rules = fopen(file,"r");

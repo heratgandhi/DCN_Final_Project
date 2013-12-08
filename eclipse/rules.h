@@ -27,3 +27,4 @@ typedef struct rulenode
 
 rulenode* head;
 void createList(char *file);
+void cleanList();
