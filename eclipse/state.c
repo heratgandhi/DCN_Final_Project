@@ -1,6 +1,6 @@
 #include "state.h"
 
-void cleanup_State()
+void cleanup_State(int timeval)
 {
 	valStruct* val;
 	State_table *entry,*tmp;
@@ -8,13 +8,25 @@ void cleanup_State()
 	HASH_ITER(hh, state_tbl, entry, tmp)
 	{
 		val = entry->value;
-
-		if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
+		if(timeval == -1)
 		{
-			val->valid = 0;
-			printf("@@@ Deleting: %s\n",entry->key);
-			HASH_DEL(state_tbl, entry);
-			free(entry);
+			if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
+			{
+				val->valid = 0;
+				printf("@@@ Deleting: %s\n",entry->key);
+				HASH_DEL(state_tbl, entry);
+				free(entry);
+			}
+		}
+		else
+		{
+			if(val->valid && ((timeval - val->timestamp) > TIMEOUT))
+			{
+				val->valid = 0;
+				printf("@@@ Deleting: %s\n",entry->key);
+				HASH_DEL(state_tbl, entry);
+				free(entry);
+			}
 		}
 	}
 }
@@ -107,7 +119,7 @@ int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 	return 0;
 }
 
-int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
+int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int time_val)
 {
 	//Testing
 	travel_list();
@@ -133,7 +145,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 	strcpy(key2->dst_ip, inet_ntoa(iphdr->ip_src));
 	strcpy(key2->src_ip, inet_ntoa(iphdr->ip_dst));
 
-	printf("Time: %d\n",time(0));
+	//printf("Time: %d\n",time(0));
 
 	if(protocol == IPPROTO_TCP)
 	{
@@ -235,7 +247,10 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc)
 			return -1;
 		}
 
-		val->timestamp = time(0);
+		if(time_val == -1)
+			val->timestamp = time(0);
+		else
+			val->timestamp = time_val;
 
 		if(protocol == IPPROTO_TCP)
 		{

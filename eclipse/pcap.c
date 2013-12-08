@@ -3,7 +3,7 @@
 #include "util.h"
 #include "state.h"
 
-void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
+void insert_in_table(struct ip* iphdr, void * other_p, int protocol, int timestf)
 {
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
@@ -30,7 +30,6 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		val->valid = 1;
 		val->identifier = -1;
 		val->sequence = -1;
-		val->timestamp = time(0);
 	}
 	else if(protocol == IPPROTO_UDP)
 	{
@@ -43,7 +42,6 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		val->valid = 1;
 		val->identifier = -1;
 		val->sequence = -1;
-		val->timestamp = time(0);
 	}
 	else if(protocol == IPPROTO_ICMP)
 	{
@@ -59,8 +57,11 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol)
 		val->valid = 1;
 		val->identifier = key->sport;
 		val->sequence = key->dport;
-		val->timestamp = time(0);
 	}
+	if(timestf != -1)
+		val->timestamp = timestf;
+	else
+		val->timestamp = time(0);
 	strcpy(entry->key,struct_to_char(key));
 	entry->value = val;
 
@@ -152,7 +153,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     {
 		case IPPROTO_TCP:
 			tcphdr = (struct tcphdr*)packetptr;
-			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,1);
+			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,1,-1);
 			other_p = tcphdr;
 			proto = IPPROTO_TCP;
 			sport = ntohs(tcphdr->source);
@@ -161,7 +162,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 
 		case IPPROTO_UDP:
 			udphdr = (struct udphdr*)packetptr;
-			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,1);
+			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,1,-1);
 			other_p = udphdr;
 			proto = IPPROTO_UDP;
 			sport = ntohs(udphdr->source);
@@ -173,7 +174,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			memcpy(&id, (u_char*)icmphdr+4, 2);
 			memcpy(&seq, (u_char*)icmphdr+6, 2);
 			//printf("~~~ %s %s %d %d\n",srcip,dstip,ntohs(id),ntohs(seq));
-			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1);
+			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1,-1);
 			other_p = icmphdr;
 			sport = -1;
 			dport = -1;
@@ -206,7 +207,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			}
 			return;
 		}
-		insert_in_table(iphdr,other_p,proto);
+		insert_in_table(iphdr,other_p,proto,-1);
     }
     getArrayFromString(MAC_OUT);
 	for(i=0;i<6;i++)
@@ -267,7 +268,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     {
 		case IPPROTO_TCP:
 			tcphdr = (struct tcphdr*)packetptr;
-			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,2);
+			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,2,-1);
 			other_p = tcphdr;
 			proto = IPPROTO_TCP;
 			sport = ntohs(tcphdr->source);
@@ -276,7 +277,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
 		case IPPROTO_UDP:
 			udphdr = (struct udphdr*)packetptr;
-			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,2);
+			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,2,-1);
 			other_p = udphdr;
 			proto = IPPROTO_UDP;
 			sport = ntohs(udphdr->source);
@@ -287,7 +288,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 			icmphdr = (struct icmphdr*)packetptr;
 			memcpy(&id, (u_char*)icmphdr+4, 2);
 			memcpy(&seq, (u_char*)icmphdr+6, 2);
-			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,2);
+			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,2,-1);
 			other_p = icmphdr;
 			proto = IPPROTO_ICMP;
 			sport = -1;
@@ -322,7 +323,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 			}
 			return;
 		}
-		insert_in_table(iphdr,other_p,proto);
+		insert_in_table(iphdr,other_p,proto,-1);
 	}
 
 	getArrayFromString(MAC_IN);
@@ -356,11 +357,19 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     int proto;
     void *other_p;
     int sport, dport;
+    static int prev_time = 0;
+    int tStamp = packethdr->ts.tv_sec;
 
     u_char *backup = packetptr;
     struct pcap_pkthdr* backup2 = packethdr;
 
     struct ethhdr *eth = (struct ethhdr *)packetptr;
+    //printf("Timestamp: %ld\n",packethdr->ts.tv_sec);
+    if(tStamp - prev_time > TIMEOUT)
+    {
+    	cleanup_State(tStamp);
+    	prev_time = tStamp;
+    }
 
     // Skip the datalink layer header and get the IP header fields.
     packetptr += linkhdrlen;
@@ -379,7 +388,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     {
 		case IPPROTO_TCP:
 			tcphdr = (struct tcphdr*)packetptr;
-			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,1);
+			decision_t = updateState(iphdr,tcphdr,IPPROTO_TCP,1,tStamp);
 			other_p = tcphdr;
 			proto = IPPROTO_TCP;
 			sport = ntohs(tcphdr->source);
@@ -388,7 +397,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
 
 		case IPPROTO_UDP:
 			udphdr = (struct udphdr*)packetptr;
-			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,1);
+			decision_t = updateState(iphdr,udphdr,IPPROTO_UDP,1,tStamp);
 			other_p = udphdr;
 			proto = IPPROTO_UDP;
 			sport = ntohs(udphdr->source);
@@ -399,7 +408,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
 			icmphdr = (struct icmphdr*)packetptr;
 			memcpy(&id, (u_char*)icmphdr+4, 2);
 			memcpy(&seq, (u_char*)icmphdr+6, 2);
-			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1);
+			decision_t = updateState(iphdr,icmphdr,IPPROTO_ICMP,1,tStamp);
 			other_p = icmphdr;
 			sport = -1;
 			dport = -1;
@@ -424,7 +433,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
 			printf("Reject!\n");
 			return;
 		}
-		insert_in_table(iphdr,other_p,proto);
+		insert_in_table(iphdr,other_p,proto,tStamp);
     }
     pcap_dump(user, backup2, backup);
 }

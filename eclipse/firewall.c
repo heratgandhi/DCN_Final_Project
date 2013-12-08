@@ -2,7 +2,6 @@
 #include "pcap.h"
 #include "rules.h"
 #include "state.h"
-#include <pthread.h>
 
 pcap_t* in_handle;
 pcap_t* out_handle;
@@ -41,7 +40,7 @@ void func3()
 			printf("Can't acquire write lock on state lock.\n");
 		}
 
-		cleanup_State();
+		cleanup_State(-1);
 
 		pthread_rwlock_unlock(&state_lock);
 
@@ -143,21 +142,21 @@ int main(int argc, char **argv)
 			printf("Usage: ./firewall mode [input pcap file] [output pcap file]\n",
 				"           Mode: 1/2\n");
 		}
-		pthread_t threads[2];
+		//pthread_t threads[2];
 		in_handle = pcap_open_offline(argv[3],errbuf);
 		//802.3 = 1 - link type
 		//open new pcap handler
 		out_handle = pcap_open_dead(1,65536);
 		//open the file with the handler
 		dumper = pcap_dump_open(out_handle, argv[4]);
+		capture_loop(in_handle, -1, (pcap_handler)parse_packet_file, (u_char*)dumper);
+		//pthread_create(threads + 0, NULL, func5, (void *) 0);
+		//pthread_create(threads + 1, NULL, func3, (void *) 1);
 
-		pthread_create(threads + 0, NULL, func5, (void *) 0);
-		pthread_create(threads + 1, NULL, func3, (void *) 1);
+		//pthread_join(threads[0], NULL);
+		//pthread_join(threads[1], NULL);
 
-		pthread_join(threads[0], NULL);
-		pthread_join(threads[1], NULL);
-
-		pthread_exit(NULL);
+		//pthread_exit(NULL);
 	}
     return 0;
 }

@@ -28,10 +28,10 @@ typedef struct State_table{
     UT_hash_handle hh;
 }State_table;
 
-int updateState(struct ip* iphdr, void * other_p, int protocol,int proc);
+int updateState(struct ip* iphdr, void * other_p, int protocol,int proc, int time_val);
 char* struct_to_char(keyStruct* key);
 keyStruct* char_to_struct(char* key);
-void cleanup_State();
+void cleanup_State(int timeval);
 
 State_table* state_tbl;
 pthread_rwlock_t state_lock;
