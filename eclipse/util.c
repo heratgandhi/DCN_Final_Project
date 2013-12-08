@@ -135,15 +135,15 @@ int IPToUInt(char* ip)
 //Check whether IP belongs to the network
 int isIPInSubnet(char* ip, char* network, int mask)
 {
-    int ip_addr = IPToUInt(ip);
-    int network_addr = IPToUInt(network);
-    int mask_addr = 0;
+    unsigned int ip_addr = IPToUInt(ip);
+    unsigned int network_addr = IPToUInt(network);
+    unsigned int mask_addr = 0;
     int i = 0;
     for(i=0;i<mask;i++)
         mask_addr |= 1<<(31-i);
 
-    int net_lower = (network_addr & mask_addr);
-    int net_upper = (net_lower | (~mask_addr));
+    unsigned int net_lower = (network_addr & mask_addr);
+    unsigned int net_upper = (net_lower | (~mask_addr));
 
     if (ip_addr >= net_lower &&
         ip_addr <= net_upper)
@@ -154,9 +154,9 @@ int isIPInSubnet(char* ip, char* network, int mask)
 //Check whether IP belongs to the range of addresses
 int isIPInRange(char *ip,char *start_ip,char *end_ip)
 {
-   int sa = IPToUInt(start_ip);
-   int ea = IPToUInt(end_ip);
-   int check = IPToUInt(ip);
+   unsigned int sa = IPToUInt(start_ip);
+   unsigned int ea = IPToUInt(end_ip);
+   unsigned int check = IPToUInt(ip);
    if (check >= sa && check <= ea)
         return 1;
     return 0;
