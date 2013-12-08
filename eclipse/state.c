@@ -299,9 +299,17 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 		{
 			printf("Can't acquire write lock on state lock.\n");
 		}
-		HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
+		if(val->state != 6)
+		{
+			HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
+			printf("Replaced!\n");
+		}
+		else
+		{
+			HASH_DEL(state_tbl, entry);
+			printf("DELETED!\n");
+		}
 		pthread_rwlock_unlock(&state_lock);
-		printf("Replaced!\n");
 		return 1;
 	}
 	return 0;

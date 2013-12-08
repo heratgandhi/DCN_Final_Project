@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 
 		//pthread_exit(NULL);
 	}
-    cleanList();
 
+    cleanList();
     return 0;
 }
