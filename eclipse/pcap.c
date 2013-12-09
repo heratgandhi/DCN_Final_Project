@@ -209,7 +209,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 			printf("Reject!\n");
 			if(iphdr->ip_p == IPPROTO_TCP)
 			{
-				SendTCPRst(dstip,srcip,dport,sport,ntohs(tcphdr->seq));
+				SendTCPRst(dstip,srcip,dport,sport,ntohl(tcphdr->seq));
 			}
 			else
 			{
@@ -326,7 +326,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 			printf("Reject!\n");
 			if(iphdr->ip_p == IPPROTO_TCP)
 			{
-				SendTCPRst(dstip,srcip,dport,sport,ntohs(tcphdr->seq));
+				SendTCPRst(dstip,srcip,dport,sport,ntohl(tcphdr->seq));
 			}
 			else
 			{

@@ -45,17 +45,19 @@ void SendTCPRst(char* src_addr, char* dst_addr,int sport,int dport,int seq_syn)
     ip->version     = 4; //IPv4
     ip->tot_len     = sizeof(struct iphdr) + sizeof(struct tcphdr);
     ip->protocol    = IPPROTO_TCP; //TCP
+    ip->ttl         = 10;
     ip->saddr       = inet_addr(src_addr); //set source address
     ip->daddr       = inet_addr(dst_addr); //set destination address
     ip->check = in_cksum((unsigned short *)ip, sizeof(struct iphdr));
 
-    tcp->ack = htons(seq_syn+1);
-    tcp->seq = htons(0);
+    tcp->ack_seq = htonl(seq_syn+1);
+    tcp->seq = htonl(0);
     tcp->rst = 1;
+    tcp->ack = 1;
     tcp->source = htons(sport);
     tcp->dest = htons(dport);
-    tcp->window = htonl(128);
-	tcp->doff = (sizeof(struct tcphdr))/4;
+    tcp->window = htonl(10);
+	tcp->doff = 5;
     tcp->check = in_cksum((unsigned short *)tcp, sizeof(struct tcphdr));
 
     /* open ICMP socket */
@@ -90,6 +92,7 @@ void SendICMPError(char* src_addr, char* dst_addr)
 
     ip->ihl         = 5; //length is 5 bytes
     ip->version     = 4; //IPv4
+    ip->ttl         = 10;
     ip->tot_len     = sizeof(struct iphdr) + sizeof(struct icmphdr);
     ip->protocol    = IPPROTO_ICMP; //ICMP
     ip->saddr       = inet_addr(src_addr); //set source address
