@@ -3,8 +3,14 @@
 #include "util.h"
 #include "state.h"
 
+//Insert in the state table
 void insert_in_table(struct ip* iphdr, void * other_p, int protocol, int timestf)
 {
+	//Get write lock
+	if (pthread_rwlock_wrlock(&state_lock) != 0)
+	{
+		printf("Can't acquire write lock on state lock.\n");
+	}
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
 	struct udphdr* udphdr;
@@ -16,9 +22,11 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol, int timestf
 	int ticmp;
 	char* tmp = (char*) malloc(sizeof(char)*50);
 
+	//Create the key
 	strcpy(key->src_ip, inet_ntoa(iphdr->ip_src));
 	strcpy(key->dst_ip, inet_ntoa(iphdr->ip_dst));
 
+	//Fill the value fields
 	if(protocol == IPPROTO_TCP)
 	{
 		tcphdr = (struct tcphdr*) other_p;
@@ -58,21 +66,22 @@ void insert_in_table(struct ip* iphdr, void * other_p, int protocol, int timestf
 		val->identifier = key->sport;
 		val->sequence = key->dport;
 	}
+	//PCAP replay requires special handling
 	if(timestf != -1)
 		val->timestamp = timestf;
 	else
 		val->timestamp = time(0);
+
 	strcpy(entry->key,struct_to_char(key));
 	entry->value = val;
 
-	if (pthread_rwlock_wrlock(&state_lock) != 0)
-	{
-		printf("Can't acquire write lock on state lock.\n");
-	}
+	//Insert in the table
 	HASH_ADD_STR(state_tbl, key, entry);
+	//Release the write lock
 	pthread_rwlock_unlock(&state_lock);
 }
 
+//General pcap function which assigns the callbacks
 void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
 {
     int linktype;
@@ -112,6 +121,7 @@ void capture_loop(pcap_t* pd, int packets, pcap_handler func, u_char* dump)
 	}
 }
 
+//Parse packet function for one interface
 void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
 	struct ip* iphdr;
@@ -227,6 +237,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 	printf("1 %d\n",pcap_inject(out_handle,eth,packethdr->len));
 }
 
+//Parse packet function for another interface
 void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
     struct ip* iphdr;
@@ -343,6 +354,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 	printf("2 %d\n",pcap_inject(in_handle,eth,packethdr->len));
 }
 
+//Parse packet function for files
 void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr)
 {
 	struct ip* iphdr;
@@ -437,4 +449,3 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     }
     pcap_dump(user, backup2, backup);
 }
-

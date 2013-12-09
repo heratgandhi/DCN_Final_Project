@@ -4,7 +4,7 @@
 
 int arp_cnt = 0;
 
-//testing
+//Testing
 void printARP()
 {
 	if (pthread_rwlock_rdlock(&arp_lock) != 0)

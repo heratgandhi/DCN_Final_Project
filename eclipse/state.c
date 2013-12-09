@@ -1,5 +1,6 @@
 #include "state.h"
 
+//Cleanup the state table
 void cleanup_State(int timeval)
 {
 	valStruct* val;
@@ -31,6 +32,7 @@ void cleanup_State(int timeval)
 	}
 }
 
+//Convert int to string
 char* itoa(int val, int base)
 {
 	static char buf[32] = {0};
@@ -40,6 +42,7 @@ char* itoa(int val, int base)
 	return &buf[i+1];
 }
 
+//Convert key from structure to string
 char* struct_to_char(keyStruct* key)
 {
 	char *ptr = (char*) malloc(50*sizeof(char));
@@ -58,6 +61,7 @@ char* struct_to_char(keyStruct* key)
 	return ptr;
 }
 
+//Convert string to key structure
 keyStruct* char_to_struct(char* key)
 {
 	char* token = strtok(key, ",");
@@ -86,11 +90,15 @@ keyStruct* char_to_struct(char* key)
 	return key_s;
 }
 
-
+//Iterate the list and print it for the debugging
 void travel_list()
 {
 	valStruct* val;
 	State_table *i;
+	if (pthread_rwlock_rdlock(&state_lock) != 0)
+	{
+		printf("Can't acquire read lock on state lock.\n");
+	}
 	for(i=state_tbl;i != NULL; i=i->hh.next)
 	{
 		printf("%s: ",i->key);
@@ -98,8 +106,10 @@ void travel_list()
 		printf("State:%d Proto:%d Sequence:%d valid:%d timestamp:%d\n",
 				val->state,val->protocol,val->sequence,val->valid,val->timestamp);
 	}
+	pthread_rwlock_unlock(&state_lock);
 }
 
+//Handle the ICMP error
 int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 {
 	keyStruct* temp;
@@ -119,6 +129,7 @@ int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 	return 0;
 }
 
+//Update the state table
 int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int time_val)
 {
 	//Testing
@@ -293,12 +304,13 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 					return -1;
 			}
 		}
-		strcpy(new_entry->key, entry->key);
-		new_entry->value = val;
 		if (pthread_rwlock_wrlock(&state_lock) != 0)
 		{
 			printf("Can't acquire write lock on state lock.\n");
 		}
+		strcpy(new_entry->key, entry->key);
+		new_entry->value = val;
+
 		if(val->state != 6)
 		{
 			HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
@@ -309,6 +321,7 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 			HASH_DEL(state_tbl, entry);
 			printf("DELETED!\n");
 		}
+
 		pthread_rwlock_unlock(&state_lock);
 		return 1;
 	}
