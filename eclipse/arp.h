@@ -26,5 +26,7 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 char* get_Mac_ARP(char* target_ip_string,char *if_name);
 //Clean up Thread
 void cleanup_ARP();
+//Update ARP entry when IP is alive
+void updateARP();
 
 pthread_rwlock_t arp_lock;

@@ -148,6 +148,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
             ntohs(iphdr->ip_id), iphdr->ip_tos, iphdr->ip_ttl,
             4*iphdr->ip_hl, ntohs(iphdr->ip_len));
 
+    updateARP(srcip);
     // Advance to the transport layer header then parse and display
     // the fields based on the type of hearder: tcp, udp or icmp.
     packetptr += 4*iphdr->ip_hl;
@@ -267,7 +268,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     // Advance to the transport layer header then parse and display
     // the fields based on the type of hearder: tcp, udp or icmp.
     packetptr += 4*iphdr->ip_hl;
-
+    updateARP(srcip);
     //printf("2 %s %s\n",srcip,dstip);
 
     if(!isIPInSubnet(dstip,NET_IN,SUB_IN)  || iphdr->ip_v == 6)

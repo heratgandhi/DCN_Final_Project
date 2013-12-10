@@ -14,7 +14,7 @@ void printARP()
 	ARP_table *i;
 	for(i=arp_tbl; i != NULL; i=i->hh.next)
 	{
-		printf("##%s##",i->key);
+		printf("##%s : %d##",i->key,i->value->timestamp);
 	}
 	printf("\n");
 	pthread_rwlock_unlock(&arp_lock);
@@ -47,6 +47,41 @@ char* checkInARPTable(char *ip)
 		else
 		{
 			return NULL;
+		}
+	}
+}
+
+//Update ARP entry for the srcip
+void updateARP(char *ip)
+{
+	ARP_table *entry,*new_entry;
+	ip_mac *val;
+	if (pthread_rwlock_rdlock(&arp_lock) != 0)
+	{
+		printf("Can't acquire read ARP lock.\n");
+	}
+	HASH_FIND_STR(arp_tbl,ip,entry);
+	pthread_rwlock_unlock(&arp_lock);
+
+	if(entry == NULL)
+	{
+		return;
+	}
+	else
+	{
+		val = entry->value;
+		if(val->valid)
+		{
+			new_entry = (ARP_table*) malloc(sizeof(ARP_table));
+			strcpy(new_entry->key,ip);
+			val->timestamp = time(0);
+			new_entry->value = val;
+			if (pthread_rwlock_wrlock(&arp_lock) != 0)
+			{
+				printf("Can't acquire read ARP lock.\n");
+			}
+			HASH_REPLACE_STR(arp_tbl, key, entry, new_entry);
+			pthread_rwlock_unlock(&arp_lock);
 		}
 	}
 }
