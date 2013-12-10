@@ -132,7 +132,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     unsigned short id, seq;
     int i;
     int decision_p;
-    int decision_t;
+    int decision_t = -1;
     int proto;
     void *other_p;
     int sport, dport;
@@ -154,7 +154,7 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 
     //printf("1 %s %s\n",srcip,dstip);
 
-    if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT))
+    if(!isIPInSubnet(dstip,NET_OUT,SUB_OUT) || iphdr->ip_v == 6)
 	{
 		return;
 	}
@@ -248,7 +248,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
     unsigned short id, seq;
     int i;
     int decision_p;
-    int decision_t;
+    int decision_t = -1;
 	int proto;
 	void *other_p;
 	int sport,dport;
@@ -270,7 +270,7 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
     //printf("2 %s %s\n",srcip,dstip);
 
-    if(!isIPInSubnet(dstip,NET_IN,SUB_IN))
+    if(!isIPInSubnet(dstip,NET_IN,SUB_IN)  || iphdr->ip_v == 6)
 	{
 		return;
 	}
@@ -365,7 +365,7 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     unsigned short id, seq;
     int i;
     int decision_p;
-    int decision_t;
+    int decision_t = -1;
     int proto;
     void *other_p;
     int sport, dport;
@@ -395,6 +395,9 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     // Advance to the transport layer header then parse and display
     // the fields based on the type of hearder: tcp, udp or icmp.
     packetptr += 4*iphdr->ip_hl;
+
+    if(iphdr->ip_v == 6)
+    	return;
 
     switch (iphdr->ip_p)
     {
