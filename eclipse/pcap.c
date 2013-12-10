@@ -194,7 +194,8 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     }
     if(decision_t == -1)
     {
-    	printf("Drop!\n");
+    	if(debugging)
+    		printf("Drop!\n");
     	return;
     }
     if(decision_t == 0)
@@ -202,12 +203,14 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
     	decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
 		if(decision_p == 0)
 		{
-			printf("Drop!\n");
+			if(debugging)
+				printf("Drop!\n");
 			return;
 		}
 		else if(decision_p == -1)
 		{
-			printf("Reject!\n");
+			if(debugging)
+				printf("Reject!\n");
 			if(iphdr->ip_p == IPPROTO_TCP)
 			{
 				SendTCPRst(dstip,srcip,dport,sport,ntohl(tcphdr->seq));
@@ -227,15 +230,18 @@ void parse_packet(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetptr
 	}
 
 	get_Mac_ARP(dstip,INT_OUT);
-	printf("1 %s\n",arp_ans);
+	if(debugging)
+		printf("1 %s\n",arp_ans);
 	getArrayFromString(arp_ans);
 
 	for(i=0;i<6;i++)
 	{
 		eth->h_dest[i] = mac_t[i];
 	}
-
-	printf("1 %d\n",pcap_inject(out_handle,eth,packethdr->len));
+	if(debugging)
+		printf("1 %d\n",pcap_inject(out_handle,eth,packethdr->len));
+	else
+		pcap_inject(out_handle,eth,packethdr->len);
 }
 
 //Parse packet function for another interface
@@ -310,7 +316,8 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 
 	if(decision_t == -1)
 	{
-		printf("Drop!\n");
+		if(debugging)
+			printf("Drop!\n");
 		return;
 	}
 
@@ -319,12 +326,14 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 		decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
 		if(decision_p == 0)
 		{
-			printf("Drop!\n");
+			if(debugging)
+				printf("Drop!\n");
 			return;
 		}
 		else if(decision_p == -1)
 		{
-			printf("Reject!\n");
+			if(debugging)
+				printf("Reject!\n");
 			if(iphdr->ip_p == IPPROTO_TCP)
 			{
 				SendTCPRst(dstip,srcip,dport,sport,ntohl(tcphdr->seq));
@@ -345,14 +354,19 @@ void parse_packet_p(u_char *user, struct pcap_pkthdr *packethdr, u_char *packetp
 	}
 
 	get_Mac_ARP(dstip,INT_IN);
-	printf("2 %s\n",arp_ans);
+
+	if(debugging)
+		printf("2 %s\n",arp_ans);
+
 	getArrayFromString(arp_ans);
 	for(i=0;i<6;i++)
 	{
 		eth->h_dest[i] = mac_t[i];
 	}
-
-	printf("2 %d\n",pcap_inject(in_handle,eth,packethdr->len));
+	if(debugging)
+		printf("2 %d\n",pcap_inject(in_handle,eth,packethdr->len));
+	else
+		pcap_inject(in_handle,eth,packethdr->len);
 }
 
 //Parse packet function for files
@@ -433,7 +447,8 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     }
     if(decision_t == -1)
     {
-    	printf("Drop!\n");
+    	if(debugging)
+    		printf("Drop!\n");
     	return;
     }
     if(decision_t == 0)
@@ -441,12 +456,14 @@ void parse_packet_file(u_char *user, struct pcap_pkthdr *packethdr, u_char *pack
     	decision_p = matchWithRules(srcip,dstip,sport,dport,proto);
 		if(decision_p == 0)
 		{
-			printf("Drop!\n");
+			if(debugging)
+				printf("Drop!\n");
 			return;
 		}
 		else if(decision_p == -1)
 		{
-			printf("Reject!\n");
+			if(debugging)
+				printf("Reject!\n");
 			return;
 		}
 		insert_in_table(iphdr,other_p,proto,tStamp);

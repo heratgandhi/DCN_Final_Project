@@ -41,7 +41,8 @@ char* checkInARPTable(char *ip)
 		val = entry->value;
 		if(val->valid)
 		{
-			printf("Cached: %s\n",val->mac);
+			if(debugging)
+				printf("Cached: %s\n",val->mac);
 			return val->mac;
 		}
 		else
@@ -116,7 +117,8 @@ void cleanup_ARP()
 	    val = entry->value;
 	    if(val->valid && ((time(0) - val->timestamp) > TIMEOUT_ARP))
 		{
-			printf("Deleting: %s ^^^\n",entry->key);
+	    	if(debugging)
+	    		printf("Deleting: %s ^^^\n",entry->key);
 			val->valid = 0;
 			HASH_DEL(arp_tbl, entry);
 			free(entry);
@@ -160,7 +162,8 @@ void parse_packet_arp(u_char *user, struct pcap_pkthdr *packethdr, u_char *packe
 char* get_Mac_ARP(char* target_ip_string,char *if_name)
 {
 	//Testing for ARP table
-	printARP();
+	if(debugging)
+		printARP();
 	//First check inside the cache of the OS
 	const char filename[] = "/proc/net/arp";
 	char ip_l[16];
@@ -169,11 +172,13 @@ char* get_Mac_ARP(char* target_ip_string,char *if_name)
 	mac_ans = checkInARPTable(target_ip_string);
 	if(mac_ans != NULL)
 	{
-		printf("ARP: Cached: %s\n",mac_ans);
+		if(debugging)
+			printf("ARP: Cached: %s\n",mac_ans);
 		strcpy(arp_ans,mac_ans);
 		return arp_ans;
 	}
-	printf("ARP: Not cached!\n");
+	if(debugging)
+		printf("ARP: Not cached!\n");
 	FILE *file = fopen(filename, "r");
 	if (file)
 	{

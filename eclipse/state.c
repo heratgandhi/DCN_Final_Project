@@ -14,7 +14,8 @@ void cleanup_State(int timeval)
 			if(val->valid && ((time(0) - val->timestamp) > TIMEOUT))
 			{
 				val->valid = 0;
-				printf("@@@ Deleting: %s\n",entry->key);
+				if(debugging)
+					printf("@@@ Deleting: %s\n",entry->key);
 				HASH_DEL(state_tbl, entry);
 				free(entry);
 			}
@@ -24,7 +25,8 @@ void cleanup_State(int timeval)
 			if(val->valid && ((timeval - val->timestamp) > TIMEOUT))
 			{
 				val->valid = 0;
-				printf("@@@ Deleting: %s\n",entry->key);
+				if(debugging)
+					printf("@@@ Deleting: %s\n",entry->key);
 				HASH_DEL(state_tbl, entry);
 				free(entry);
 			}
@@ -133,7 +135,8 @@ int handle_icmp_error(keyStruct* k1,keyStruct *k2)
 int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int time_val)
 {
 	//Testing
-	travel_list();
+	if(debugging)
+		travel_list();
 
 	struct icmphdr* icmphdr;
 	struct tcphdr* tcphdr;
@@ -189,7 +192,8 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 
 	strcpy(tkey1,struct_to_char(key1));
 	strcpy(tkey2,struct_to_char(key2));
-	printf("Searching: 1. %s \n 2. %s\n",tkey1,tkey2);
+	if(debugging)
+		printf("Searching: 1. %s \n 2. %s\n",tkey1,tkey2);
 
 	if (pthread_rwlock_rdlock(&state_lock) != 0)
 	{
@@ -201,7 +205,8 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 
 	if((entry1 == NULL) && (entry2== NULL))
 	{
-		printf("%d-->Not found in the session table.\n",proc);
+		if(debugging)
+			printf("%d-->Not found in the session table.\n",proc);
 
 		//Return 0 only if new  session is allowed otherwise return -1
 		if(protocol == IPPROTO_UDP)
@@ -240,7 +245,8 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 	}
 	else
 	{
-		printf("%d-->Found in the session table.\n",proc);
+		if(debugging)
+			printf("%d-->Found in the session table.\n",proc);
 		//Update the entry inside the table
 		if(entry1 != NULL)
 		{
@@ -314,12 +320,14 @@ int updateState(struct ip* iphdr, void * other_p, int protocol, int proc, int ti
 		if(val->state != 6)
 		{
 			HASH_REPLACE_STR(state_tbl, key, entry, new_entry);
-			printf("Replaced!\n");
+			if(debugging)
+				printf("Replaced!\n");
 		}
 		else
 		{
 			HASH_DEL(state_tbl, entry);
-			printf("DELETED!\n");
+			if(debugging)
+				printf("DELETED!\n");
 		}
 
 		pthread_rwlock_unlock(&state_lock);

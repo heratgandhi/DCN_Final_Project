@@ -60,3 +60,5 @@ extern int arp_linkhdrlen;
 extern pcap_t *arp_pcap;
 extern char check_ip[16];
 extern char arp_ans[18];
+
+extern int debugging;

@@ -15,6 +15,7 @@ int arp_linkhdrlen;
 pcap_t *arp_pcap;
 char check_ip[16];
 char arp_ans[18];
+int debugging;
 
 //Thread 1 - which processes packets from one interface
 void func1()
@@ -95,8 +96,9 @@ int main(int argc, char **argv)
 	//Check whether user has entered enough arguments
 	if(argc < 2)
 	{
-		printf("Usage: ./firewall mode rules [input pcap file] [output pcap file]\n",
-				"           Mode: 1/2\n");
+		printf("Usage: ./firewall mode rules_file [input pcap file] [output pcap file] 1/0\n",
+				"           Mode: 1/2\n"
+				"           Debugging: On/Off\n");
 	}
     char errbuf[100];
     int mode = atoi(argv[1]);
@@ -123,6 +125,8 @@ int main(int argc, char **argv)
 	//If mode = 1 then use the interfaces to capture packets
     if(mode == 1)
     {
+    	debugging = atoi(argv[3]);
+
     	pthread_t threads[4];
 		//Open the interface handlers
 		in_handle = pcap_open_live(INT_IN,65536,1,0,errbuf);
@@ -146,11 +150,13 @@ int main(int argc, char **argv)
 	else
 	{
 		//Check for the valid arguments
-		if(argc < 4)
+		if(argc < 5)
 		{
-			printf("Usage: ./firewall mode [input pcap file] [output pcap file]\n",
-				"           Mode: 1/2\n");
+			printf("Usage: ./firewall mode rule_file [input pcap file] [output pcap file] 0/1\n",
+				"           Mode: 1/2\n"
+				"           Debug:On/Off\n");
 		}
+		debugging = atoi(argv[5]);
 		in_handle = pcap_open_offline(argv[3],errbuf);
 		//802.3 = 1 - link type
 		//open new pcap handler
