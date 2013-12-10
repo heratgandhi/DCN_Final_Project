@@ -99,7 +99,7 @@ void SendICMPError(char* src_addr, char* dst_addr)
     ip->daddr       = inet_addr(dst_addr); //set destination address
     ip->check = in_cksum((unsigned short *)ip, sizeof(struct iphdr));
 
-    icmp->type      = ICMP_DEST_UNREACH; //Type = 5
+    icmp->type      = ICMP_DEST_UNREACH; //Type = 3
     icmp->code      = ICMP_PKT_FILTERED; //Code = 13
     icmp->checksum = in_cksum((unsigned short *)icmp, sizeof(struct icmphdr));
 
